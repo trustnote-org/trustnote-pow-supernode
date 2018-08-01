@@ -5,7 +5,7 @@ var db = require('trustnote-pow-common/db.js');
 var storage = require('trustnote-pow-common/storage.js');
 var eventBus = require('trustnote-pow-common/event_bus.js');
 var mail = require('trustnote-pow-common/mail.js');
-var headlessWallet = require('trustnote-headless');
+var headlessWallet = require('trustnote-pow-headless');
 var desktopApp = require('trustnote-pow-common/desktop_app.js');
 var objectHash = require('trustnote-pow-common/object_hash.js');
 
@@ -45,8 +45,8 @@ function witness(onDone){
 		notifyAdminAboutFailedWitnessing(err);
 		setTimeout(onDone, 60000); // pause after error
 	}
-	var network = require('trustnote-common/network.js');
-	var composer = require('trustnote-common/composer.js');
+	var network = require('trustnote-pow-common/network.js');
+	var composer = require('trustnote-pow-common/composer.js');
 	if (!network.isConnected()){
 		console.log('not connected, skipping');
 		return onDone();
@@ -149,6 +149,10 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
 		}
 	);
+}
+
+// pow add
+function checkIfIAmWitness(){
 }
 
 //add winess payment victor
