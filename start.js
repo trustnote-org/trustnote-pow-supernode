@@ -80,6 +80,7 @@ function witness(onDone){
 	});
 }
 
+
 function checkAndWitness(){
 	console.log('checkAndWitness');
 	clearTimeout(forcedWitnessingTimer);
@@ -87,10 +88,17 @@ function checkAndWitness(){
 		return console.log('witnessing under way');
 	bWitnessingUnderWay = true;
 	// abort if there are my units without an mci
-	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
-		if (bMyUnitsWithoutMci){
+	// determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){ // pow del
+	determineIfIAmWitness(function(bWitness){ // pow add
+		// pow del
+		// if (bMyUnitsWithoutMci){
+		// 	bWitnessingUnderWay = false;
+		// 	return console.log('my units without mci');
+		// }
+		// pow add
+		if (!bWitness){
 			bWitnessingUnderWay = false;
-			return console.log('my units without mci');
+			return console.log('I am not an attestor for now')
 		}
 		storage.readLastMainChainIndex(function(max_mci){
 			let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
@@ -122,11 +130,25 @@ function checkAndWitness(){
 	});
 }
 
-function determineIfThereAreMyUnitsWithoutMci(handleResult){
-	db.query("SELECT 1 FROM units JOIN unit_authors USING(unit) WHERE address=? AND main_chain_index IS NULL LIMIT 1", [my_address], function(rows){
-		handleResult(rows.length > 0);
-	});
+function determineIfIAmWitness(handleResult){
+	getPresentWitness(function(arrWitnesses){
+		db.query(
+			"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
+				if(rows.length===0) {
+					return handleResult(false)
+				}
+				return handleResult(true)
+			}
+		)
+	})
 }
+
+// pow del
+// function determineIfThereAreMyUnitsWithoutMci(handleResult){
+// 	db.query("SELECT 1 FROM units JOIN unit_authors USING(unit) WHERE address=? AND main_chain_index IS NULL LIMIT 1", [my_address], function(rows){
+// 		handleResult(rows.length > 0);
+// 	});
+// }
 
 function checkForUnconfirmedUnits(distance_to_threshold){
 	db.query( // look for unstable non-witness-authored units
@@ -179,10 +201,17 @@ function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
 		return;
 	bWitnessingUnderWay = true;
-	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
-		if (bMyUnitsWithoutMci){
+	// determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){ pow del
+	determineIfIAmWitness(function(bWitness){ //pow add
+		// pow del
+		// if (bMyUnitsWithoutMci){
+		// 	bWitnessingUnderWay = false;
+		// 	return console.log('my units without mci');
+		// }
+		// pow add
+		if (!bWitness){
 			bWitnessingUnderWay = false;
-			return;
+			return console.log('I am not an attestor for now')
 		}
 		console.log('will witness before threshold');
 		witness(function(){
