@@ -23,6 +23,6 @@
   },
   "dependencies": {
     "trustnote-common": "git+https://github.com/trustnote/trustnote-pow-common.git",
-    "trustnote-headless": "git+https://github.com/trustnote/trustnote-headless.git"
+    "trustnote-headless": "git+https://github.com/trustnote/trustnote-pow-headless.git"
   }
 }

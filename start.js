@@ -550,8 +550,8 @@ function witness(onDone){
 		notifyAdminAboutFailedWitnessing(err);
 		setTimeout(onDone, 60000); // pause after error
 	}
-	var network = require('trustnote-common/network.js');
-	var composer = require('trustnote-common/composer.js');
+	var network = require('trustnote-pow-common/network.js');
+	var composer = require('trustnote-pow-common/composer.js');
 	if (!network.isConnected()){
 		console.log('not connected, skipping');
 		return onDone();
@@ -679,6 +679,10 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
 		}
 	);
+}
+
+// pow add
+function checkIfIAmWitness(){
 }
 
 //add winess payment victor
