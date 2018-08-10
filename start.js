@@ -566,9 +566,7 @@ function witness(onDone){
 				onDone();
 			}
 		})
-		round.getMaxRoundIndex(function(round_index){
-			composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
-		})
+		composer.composeTrustMEJoint(my_address, signer, callbacks);
 	});
 }
 
