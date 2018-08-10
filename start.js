@@ -317,42 +317,6 @@ function sendPayment(asset, amount, to_address, change_address, device_address, 
 	);
 }
 
-function sendAllBytesFromAddress(from_address, to_address, recipient_device_address, onDone) {
-	var device = require('trustnote-pow-common/device.js');
-	var Wallet = require('trustnote-pow-common/wallet.js');
-	Wallet.sendMultiPayment({
-		asset: null,
-		to_address: to_address,
-		send_all: true,
-		paying_addresses: [from_address],
-		arrSigningDeviceAddresses: [device.getMyDeviceAddress()],
-		recipient_device_address: recipient_device_address,
-		signWithLocalPrivateKey: signWithLocalPrivateKey
-	}, (err, unit) => {
-		if(onDone)
-			onDone(err, unit);
-	});
-}
-
-function sendAssetFromAddress(asset, amount, from_address, to_address, recipient_device_address, onDone) {
-	var device = require('trustnote-pow-common/device.js');
-	var Wallet = require('trustnote-pow-common/wallet.js');
-	Wallet.sendMultiPayment({
-		fee_paying_wallet: wallet_id,
-		asset: asset,
-		to_address: to_address,
-		amount: amount,
-		paying_addresses: [from_address],
-		change_address: from_address,
-		arrSigningDeviceAddresses: [device.getMyDeviceAddress()],
-		recipient_device_address: recipient_device_address,
-		signWithLocalPrivateKey: signWithLocalPrivateKey
-	}, (err, unit) => {
-		if (onDone)
-			onDone(err, unit);
-	});
-}
-
 function issueChangeAddressAndSendPayment(asset, amount, to_address, device_address, onDone){
 	if (conf.bSingleAddress){
 		readSingleAddress(function(change_address){
@@ -370,20 +334,6 @@ function issueChangeAddressAndSendPayment(asset, amount, to_address, device_addr
 			sendPayment(asset, amount, to_address, objAddr.address, device_address, onDone);
 		});
 	}
-}
-
-function issueOrSelectNextMainAddress(handleAddress){
-	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
-	walletDefinedByKeys.issueOrSelectNextAddress(wallet_id, 0, function(objAddr){
-		handleAddress(objAddr.address);
-	});
-}
-
-function issueNextMainAddress(handleAddress){
-	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
-	walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(objAddr){
-		handleAddress(objAddr.address);
-	});
 }
 
 function issueOrSelectStaticChangeAddress(handleAddress){
@@ -524,8 +474,6 @@ function setupChatEventHandlers(){
 	});
 }
 
-setupChatEventHandlers();
-
 function notifyAdmin(subject, body){
 	mail.sendmail({
 		to: conf.admin_email,
@@ -578,50 +526,52 @@ function checkAndWitness(){
 		return console.log('witnessing under way');
 	bWitnessingUnderWay = true;
 	// abort if there are my units without an mci
-	// determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){ // pow del
-	determineIfIAmWitness(function(bWitness){ // pow add
-		// pow del
-		// if (bMyUnitsWithoutMci){
-		// 	bWitnessingUnderWay = false;
-		// 	return console.log('my units without mci');
-		// }
-		// pow add
-		if (!bWitness){
+	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){ // pow del
+		if (bMyUnitsWithoutMci){
 			bWitnessingUnderWay = false;
-			return console.log('I am not an attestor for now')
+			return console.log('my units without mci');
 		}
-		storage.readLastMainChainIndex(function(max_mci){
-			let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-			db.query(
-				"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-				[my_address],
-				function(rows){
-					var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-					var distance = max_mci - max_my_mci;
-					console.log("distance="+distance);
-					if (distance > conf.THRESHOLD_DISTANCE){
-						console.log('distance above threshold, will witness');
-						//modi winess payment victor
-						//setTimeout(function(){
-						//	witness(function(){
-						//		bWitnessingUnderWay = false;
-						//	});
-						//}, Math.round(Math.random()*3000));
-						bWitnessingUnderWay = false;
-						checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+		determineIfIAmWitness(function(bWitness){ // pow add
+			// pow del
+			
+			// pow add
+			if (!bWitness){
+				bWitnessingUnderWay = false;
+				return console.log('I am not an attestor for now')
+			}
+			storage.readLastMainChainIndex(function(max_mci){
+				let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+				db.query(
+					"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+					[my_address],
+					function(rows){
+						var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+						var distance = max_mci - max_my_mci;
+						console.log("distance="+distance);
+						if (distance > conf.THRESHOLD_DISTANCE){
+							console.log('distance above threshold, will witness');
+							//modi winess payment victor
+							//setTimeout(function(){
+							//	witness(function(){
+							//		bWitnessingUnderWay = false;
+							//	});
+							//}, Math.round(Math.random()*3000));
+							bWitnessingUnderWay = false;
+							checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+						}
+						else{
+							bWitnessingUnderWay = false;
+							checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
+						}
 					}
-					else{
-						bWitnessingUnderWay = false;
-						checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-					}
-				}
-			);
+				);
+			});
 		});
 	});
 }
 
 function determineIfIAmWitness(handleResult){
-	round.getMaxRoundIndex(function(index){
+	round.getCurrentRoundIndex(function(index){
 		round.getWitnessesByRoundIndex(index, function(arrWitnesses){
 			db.query(
 				"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
@@ -635,18 +585,17 @@ function determineIfIAmWitness(handleResult){
 	})
 }
 
-// pow del
-// function determineIfThereAreMyUnitsWithoutMci(handleResult){
-// 	db.query("SELECT 1 FROM units JOIN unit_authors USING(unit) WHERE address=? AND main_chain_index IS NULL LIMIT 1", [my_address], function(rows){
-// 		handleResult(rows.length > 0);
-// 	});
-// }
+function determineIfThereAreMyUnitsWithoutMci(handleResult){
+	db.query("SELECT 1 FROM units JOIN unit_authors USING(unit) WHERE address=? AND main_chain_index IS NULL LIMIT 1", [my_address], function(rows){
+		handleResult(rows.length > 0);
+	});
+}
 
 function checkForUnconfirmedUnits(distance_to_threshold){
 	db.query( // look for unstable non-witness-authored units
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit) LEFT JOIN my_witnesses USING(address) \n\
+		// pow modi
+		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
 		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND my_witnesses.address IS NULL \n\
 			AND NOT ( \n\
 				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
 				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
@@ -665,16 +614,12 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 	);
 }
 
-// pow add
-function checkIfIAmWitness(){
-}
-
 //add winess payment victor
 function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
-	db.query( // look for unstable non-witness-authored units
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit) LEFT JOIN my_witnesses USING(address) \n\
+	db.query( // look for unstable non-witness-authored units 
+		// pow modi
+		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
 		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND my_witnesses.address IS NULL \n\
 			AND NOT ( \n\
 				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
 				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
@@ -697,21 +642,21 @@ function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
 		return;
 	bWitnessingUnderWay = true;
-	// determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){ pow del
-	determineIfIAmWitness(function(bWitness){ //pow add
-		// pow del
-		// if (bMyUnitsWithoutMci){
-		// 	bWitnessingUnderWay = false;
-		// 	return console.log('my units without mci');
-		// }
-		// pow add
-		if (!bWitness){
+	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
+		if (bMyUnitsWithoutMci){
 			bWitnessingUnderWay = false;
-			return console.log('I am not an attestor for now')
+			return console.log('my units without mci');
 		}
-		console.log('will witness before threshold');
-		witness(function(){
-			bWitnessingUnderWay = false;
+		determineIfIAmWitness(function(bWitness){ //pow add
+			// pow add
+			if (!bWitness){
+				bWitnessingUnderWay = false;
+				return console.log('I am not an attestor for now')
+			}
+			console.log('will witness before threshold');
+			witness(function(){
+				bWitnessingUnderWay = false;
+			});
 		});
 	});
 }
@@ -771,6 +716,7 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
 		process.exit(1);
 	}
+	setupChatEventHandlers();
 	readSingleAddress(function(address){
 		my_address = address;
 		//checkAndWitness();
