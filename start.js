@@ -16,13 +16,16 @@ var readline = require('readline');
 var storage = require('trustnote-pow-common/storage.js');
 var mail = require('trustnote-pow-common/mail.js');
 var round = require('trustnote-pow-common/rount.js')
-// var headlessWallet = require('trustnote-pow-headless');
 
 var WITNESSING_COST = 600; // size of typical witnessing unit
 var my_address;
 var bWitnessingUnderWay = false;
 var forcedWitnessingTimer;
 var count_witnessings_available = 0;
+
+// pow add
+var bMining = false; // if miner is mining
+var currentRound = 0; // to record current round index
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
@@ -531,9 +534,8 @@ function checkAndWitness(){
 			bWitnessingUnderWay = false;
 			return console.log('my units without mci');
 		}
-		determineIfIAmWitness(function(bWitness){ // pow add
-			// pow del
-			
+		// pow add
+		determineIfIAmWitness(function(bWitness){
 			// pow add
 			if (!bWitness){
 				bWitnessingUnderWay = false;
@@ -570,6 +572,7 @@ function checkAndWitness(){
 	});
 }
 
+// pow add
 function determineIfIAmWitness(handleResult){
 	round.getCurrentRoundIndex(function(index){
 		round.getWitnessesByRoundIndex(index, function(arrWitnesses){
@@ -647,7 +650,8 @@ function witnessBeforeThreshold(){
 			bWitnessingUnderWay = false;
 			return console.log('my units without mci');
 		}
-		determineIfIAmWitness(function(bWitness){ //pow add
+		// pow add
+		determineIfIAmWitness(function(bWitness){
 			// pow add
 			if (!bWitness){
 				bWitnessingUnderWay = false;
@@ -710,6 +714,22 @@ function createOptimalOutputs(handleOutputs){
 		);
 	});
 }
+
+function checkTrustMEAndStartMinig() {
+	round.getCurrentRoundIndex(function(round_index) {
+		if (currentRound !== round_index) {
+			currentRound = round_index;
+			if (bMining) {
+				notifyMinerStopCurrentMiningAndRestart()
+			} else {
+				notifyMinerStartMining()
+				bMining = true;
+			}
+		}
+	})
+}
+
+setInterval(checkTrustMEAndStartMinig, 10000);
 
 eventBus.on('headless_wallet_ready', function(){
 	if (!conf.admin_email || !conf.from_email){
