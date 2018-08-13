@@ -16,6 +16,8 @@ var readline = require('readline');
 var storage = require('trustnote-pow-common/storage.js');
 var mail = require('trustnote-pow-common/mail.js');
 var round = require('trustnote-pow-common/rount.js')
+var relay = require('./relay.js');
+var push = require('./push.js');
 
 var WITNESSING_COST = 600; // size of typical witnessing unit
 var my_address;
@@ -743,3 +745,41 @@ eventBus.on('headless_wallet_ready', function(){
 		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
 	});
 });
+
+eventBus.on('peer_version', function (ws, body) {
+	if (body.program == conf.clientName) {
+		if (conf.minClientVersion && compareVersions(body.program_version, '1.0.7') == '==')
+			return;
+		if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
+			network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
+		// if (compareVersions(body.program_version, '1.5.1') == '<')
+		// 	ws.close(1000, "mandatory upgrade");
+	}
+});
+
+function compareVersions(currentVersion, minVersion) {
+	if (currentVersion === minVersion) return '==';
+
+	var cV = currentVersion.match(/([0-9])+/g);
+	var mV = minVersion.match(/([0-9])+/g);
+	var l = Math.min(cV.length, mV.length);
+	var diff;
+
+	for (var i = 0; i < l; i++) {
+		diff = parseInt(cV[i], 10) - parseInt(mV[i], 10);
+		if (diff > 0) {
+			return '>';
+		} else if (diff < 0) {
+			return '<'
+		}
+	}
+
+	diff = cV.length - mV.length;
+	if (diff == 0) {
+		return '==';
+	} else if (diff > 0) {
+		return '>';
+	} else if (diff < 0) {
+		return '<';
+	}
+}
