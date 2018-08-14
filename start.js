@@ -29,6 +29,15 @@ var count_witnessings_available = 0;
 var bMining = false; // if miner is mining
 var currentRound = 0; // to record current round index
 
+const callbacks = composer.getSavingCallbacks({
+	ifNotEnoughFunds: onError,
+	ifError: onError,
+	ifOk: function(objJoint){
+		network.broadcastJoint(objJoint);
+		onDone();
+	}
+})
+
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
 
@@ -511,14 +520,25 @@ function witness(onDone){
 		return onDone();
 	}
 	createOptimalOutputs(function(){
-		var callbacks = composer.getSavingCallbacks({
-			ifNotEnoughFunds: onError,
-			ifError: onError,
-			ifOk: function(objJoint){
-				network.broadcastJoint(objJoint);
-				onDone();
+		if (conf.bPostTimestamp) {
+			var params = {
+				paying_addresses: [my_address],
+				outputs: [{address: my_address, amount: 0}],
+				pow_type: constants.POW_TYPE_TRUSTME,
+				signer: signer,
+				callbacks: callbacks
 			}
-		})
+			var timestamp = Date.now();
+			var datafeed = {timestamp: timestamp};
+			var objMessage = {
+				app: "data_feed",
+				payload_location: "inline",
+				payload_hash: objectHash.getBase64Hash(datafeed),
+				payload: datafeed
+			};
+			params.messages = [objMessage];
+			return composer.composeJoint(params);
+		}
 		composer.composeTrustMEJoint(my_address, signer, callbacks);
 	});
 }
@@ -537,56 +557,56 @@ function checkAndWitness(){
 			return console.log('my units without mci');
 		}
 		// pow add
-		determineIfIAmWitness(function(bWitness){
-			// pow add
-			if (!bWitness){
-				bWitnessingUnderWay = false;
-				return console.log('I am not an attestor for now')
-			}
-			storage.readLastMainChainIndex(function(max_mci){
-				let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-				db.query(
-					"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-					[my_address],
-					function(rows){
-						var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-						var distance = max_mci - max_my_mci;
-						console.log("distance="+distance);
-						if (distance > conf.THRESHOLD_DISTANCE){
-							console.log('distance above threshold, will witness');
-							//modi winess payment victor
-							//setTimeout(function(){
-							//	witness(function(){
-							//		bWitnessingUnderWay = false;
-							//	});
-							//}, Math.round(Math.random()*3000));
-							bWitnessingUnderWay = false;
-							checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+		round.getCurrentRoundIndex(function(round_index){
+			determineIfIAmWitness(round_index, function(bWitness){
+				// pow add
+				if (!bWitness){
+					bWitnessingUnderWay = false;
+					return console.log('I am not an attestor for now')
+				}
+				storage.readLastMainChainIndex(function(max_mci){
+					let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+					db.query(
+						"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+						[my_address],
+						function(rows){
+							var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+							var distance = max_mci - max_my_mci;
+							console.log("distance="+distance);
+							if (distance > conf.THRESHOLD_DISTANCE){
+								console.log('distance above threshold, will witness');
+								//modi winess payment victor
+								//setTimeout(function(){
+								//	witness(function(){
+								//		bWitnessingUnderWay = false;
+								//	});
+								//}, Math.round(Math.random()*3000));
+								bWitnessingUnderWay = false;
+								checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+							}
+							else{
+								bWitnessingUnderWay = false;
+								checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
+							}
 						}
-						else{
-							bWitnessingUnderWay = false;
-							checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-						}
-					}
-				);
+					);
+				});
 			});
 		});
 	});
 }
 
 // pow add
-function determineIfIAmWitness(handleResult){
-	round.getCurrentRoundIndex(function(index){
-		round.getWitnessesByRoundIndex(index, function(arrWitnesses){
-			db.query(
-				"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
-					if(rows.length===0) {
-						return handleResult(false)
-					}
-					return handleResult(true)
+function determineIfIAmWitness(round_index, handleResult){
+	round.getWitnessesByRoundIndex(round_index, function(arrWitnesses){
+		db.query(
+			"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
+				if(rows.length===0) {
+					return handleResult(false)
 				}
-			)
-		})
+				return handleResult(true)
+			}
+		)
 	})
 }
 
@@ -653,15 +673,17 @@ function witnessBeforeThreshold(){
 			return console.log('my units without mci');
 		}
 		// pow add
-		determineIfIAmWitness(function(bWitness){
-			// pow add
-			if (!bWitness){
-				bWitnessingUnderWay = false;
-				return console.log('I am not an attestor for now')
-			}
-			console.log('will witness before threshold');
-			witness(function(){
-				bWitnessingUnderWay = false;
+		round.getCurrentRoundIndex(function(round_index){
+			determineIfIAmWitness(round_index, function(bWitness){
+				// pow add
+				if (!bWitness){
+					bWitnessingUnderWay = false;
+					return console.log('I am not an attestor for now')
+				}
+				console.log('will witness before threshold');
+				witness(function(){
+					bWitnessingUnderWay = false;
+				});
 			});
 		});
 	});
@@ -719,6 +741,7 @@ function createOptimalOutputs(handleOutputs){
 
 function checkTrustMEAndStartMinig() {
 	round.getCurrentRoundIndex(function(round_index) {
+		let lastRound = currentRound;
 		if (currentRound !== round_index) {
 			currentRound = round_index;
 			if (bMining) {
@@ -727,6 +750,11 @@ function checkTrustMEAndStartMinig() {
 				notifyMinerStartMining()
 				bMining = true;
 			}
+			determineIfIAmWitness(lastRound, function(bWitness){
+				if(bWitness) {
+					composer.composeCoinbaseJoint(my_address, lastRound, signer, callbacks)
+				}
+			})
 		}
 	})
 }
