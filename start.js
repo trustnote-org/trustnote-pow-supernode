@@ -103,7 +103,7 @@ eventBus.on('headless_wallet_ready', function(){
 	supernode.readSingleAddress(function(address){
 		my_address = address;
 		//checkAndWitness();
-		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
+		eventBus.on('new_joint', supernode.checkAndWitness); // new_joint event is not sent while we are catching up
 	});
 });
 
