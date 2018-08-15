@@ -1,268 +1,146 @@
 /*jslint node: true */
 "use strict";
+var fs = require('fs');
+var crypto = require('crypto');
+var util = require('util');
 var conf = require('trustnote-pow-common/conf.js');
-var db = require('trustnote-pow-common/db.js');
-var storage = require('trustnote-pow-common/storage.js');
-var eventBus = require('trustnote-pow-common/event_bus.js');
-var mail = require('trustnote-pow-common/mail.js');
-var headlessWallet = require('trustnote-pow-headless');
 var desktopApp = require('trustnote-pow-common/desktop_app.js');
-var objectHash = require('trustnote-pow-common/object_hash.js');
-
-var WITNESSING_COST = 600; // size of typical witnessing unit
-var my_address;
-var bWitnessingUnderWay = false;
-var forcedWitnessingTimer;
-var count_witnessings_available = 0;
+var db = require('trustnote-pow-common/db.js');
+var eventBus = require('trustnote-pow-common/event_bus.js');
+var Mnemonic = require('bitcore-mnemonic');
+var relay = require('./relay.js');
+var push = require('./push.js');
+var supernode = require('trustnote-pow-common/supernode.js');
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
 
-headlessWallet.setupChatEventHandlers();
+var appDataDir = desktopApp.getAppDataDir();
+var xPrivKey;
 
-function notifyAdmin(subject, body){
-	mail.sendmail({
-		to: conf.admin_email,
-		from: conf.from_email,
-		subject: subject,
-		body: body
-	});
-}
-
-function notifyAdminAboutFailedWitnessing(err){
-	console.log('witnessing failed: '+err);
-	notifyAdmin('witnessing failed: '+err, err);
-}
-
-function notifyAdminAboutWitnessingProblem(err){
-	console.log('witnessing problem: '+err);
-	notifyAdmin('witnessing problem: '+err, err);
-}
-
-
-function witness(onDone){
-	function onError(err){
-		notifyAdminAboutFailedWitnessing(err);
-		setTimeout(onDone, 60000); // pause after error
-	}
-	var network = require('trustnote-pow-common/network.js');
-	var composer = require('trustnote-pow-common/composer.js');
-	if (!network.isConnected()){
-		console.log('not connected, skipping');
-		return onDone();
-	}
-	createOptimalOutputs(function(arrOutputs){
-		let params = {
-			paying_addresses: [my_address],
-			outputs: arrOutputs,
-			signer: headlessWallet.signer,
-			callbacks: composer.getSavingCallbacks({
-				ifNotEnoughFunds: onError,
-				ifError: onError,
-				ifOk: function(objJoint){
-					network.broadcastJoint(objJoint);
-					onDone();
-				}
-			})
-		};
-		if (conf.bPostTimestamp){
-			let timestamp = Date.now();
-			let datafeed = {timestamp: timestamp};
-			let objMessage = {
-				app: "data_feed",
-				payload_location: "inline",
-				payload_hash: objectHash.getBase64Hash(datafeed),
-				payload: datafeed
-			};
-			params.messages = [objMessage];
-		}
-		composer.composeJoint(params);
-	});
-}
-
-function checkAndWitness(){
-	console.log('checkAndWitness');
-	clearTimeout(forcedWitnessingTimer);
-	if (bWitnessingUnderWay)
-		return console.log('witnessing under way');
-	bWitnessingUnderWay = true;
-	// abort if there are my units without an mci
-	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
-		if (bMyUnitsWithoutMci){
-			bWitnessingUnderWay = false;
-			return console.log('my units without mci');
-		}
-		storage.readLastMainChainIndex(function(max_mci){
-			let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-			db.query(
-				"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-				[my_address],
-				function(rows){
-					var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-					var distance = max_mci - max_my_mci;
-					console.log("distance="+distance);
-					if (distance > conf.THRESHOLD_DISTANCE){
-						console.log('distance above threshold, will witness');
-						//modi winess payment victor
-						//setTimeout(function(){
-						//	witness(function(){
-						//		bWitnessingUnderWay = false;
-						//	});
-						//}, Math.round(Math.random()*3000));
-						bWitnessingUnderWay = false;
-						checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-					}
-					else{
-						bWitnessingUnderWay = false;
-						checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-					}
-				}
-			);
-		});
-	});
-}
-
-function determineIfThereAreMyUnitsWithoutMci(handleResult){
-	db.query("SELECT 1 FROM units JOIN unit_authors USING(unit) WHERE address=? AND main_chain_index IS NULL LIMIT 1", [my_address], function(rows){
-		handleResult(rows.length > 0);
-	});
-}
-
-function checkForUnconfirmedUnits(distance_to_threshold){
-	db.query( // look for unstable non-witness-authored units
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit) LEFT JOIN my_witnesses USING(address) \n\
-		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND my_witnesses.address IS NULL \n\
-			AND NOT ( \n\
-				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-			) \n\
-		LIMIT 1",
-		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-		function(rows){
-			if (rows.length === 0)
-				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*10000);
-			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-		}
-	);
-}
-
-// pow add
-function checkIfIAmWitness(){
-}
-
-//add winess payment victor
-function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
-	db.query( // look for unstable non-witness-authored units
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit) LEFT JOIN my_witnesses USING(address) \n\
-		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND my_witnesses.address IS NULL \n\
-			AND NOT ( \n\
-				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-			) \n\
-		LIMIT 1",
-		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-		function(rows){
-			if (rows.length === 0)
-				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*1000);
-			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-		}
-	);
-}
-
-function witnessBeforeThreshold(){
-	if (bWitnessingUnderWay)
-		return;
-	bWitnessingUnderWay = true;
-	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
-		if (bMyUnitsWithoutMci){
-			bWitnessingUnderWay = false;
-			return;
-		}
-		console.log('will witness before threshold');
-		witness(function(){
-			bWitnessingUnderWay = false;
-		});
-	});
-}
-
-function readNumberOfWitnessingsAvailable(handleNumber){
-	count_witnessings_available--;
-	if (count_witnessings_available > conf.MIN_AVAILABLE_WITNESSINGS)
-		return handleNumber(count_witnessings_available);
+if (conf.permanent_pairing_secret)
 	db.query(
-		"SELECT COUNT(*) AS count_big_outputs FROM outputs JOIN units USING(unit) \n\
-		WHERE address=? AND is_stable=1 AND amount>=? AND asset IS NULL AND is_spent=0",
-		[my_address, WITNESSING_COST],
-		function(rows){
-			var count_big_outputs = rows[0].count_big_outputs;
-			db.query(
-				"SELECT SUM(amount) AS total FROM outputs JOIN units USING(unit) \n\
-				WHERE address=? AND is_stable=1 AND amount<? AND asset IS NULL AND is_spent=0 \n\
-				UNION \n\
-				SELECT SUM(amount) AS total FROM witnessing_outputs \n\
-				WHERE address=? AND is_spent=0 \n\
-				UNION \n\
-				SELECT SUM(amount) AS total FROM headers_commission_outputs \n\
-				WHERE address=? AND is_spent=0",
-				[my_address, WITNESSING_COST, my_address, my_address],
-				function(rows){
-					var total = rows.reduce(function(prev, row){ return (prev + row.total); }, 0);
-					var count_witnessings_paid_by_small_outputs_and_commissions = Math.round(total / WITNESSING_COST);
-					count_witnessings_available = count_big_outputs + count_witnessings_paid_by_small_outputs_and_commissions;
-					handleNumber(count_witnessings_available);
-				}
-			);
-		}
+		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
+		[conf.permanent_pairing_secret]
 	);
+
+function datetime() {
+	let date = new Date();
+	return ''+ date.getFullYear() + (date.getMonth() < 10 ? '0' :'') + date.getMonth() +
+	(date.getDate() < 10 ? '0' :'') + date.getDate() + (date.getHours() < 10 ? '0' :'') + date.getHours() +
+	(date.getMinutes() < 10 ? '0' :'') + date.getMinutes() + ( date.getSeconds() < 10 ? '0' :'') + date.getSeconds()
 }
 
-// make sure we never run out of spendable (stable) outputs. Keep the number above a threshold, and if it drops below, produce more outputs than consume.
-function createOptimalOutputs(handleOutputs){
-	var arrOutputs = [{amount: 0, address: my_address}];
-	readNumberOfWitnessingsAvailable(function(count){
-		if (count > conf.MIN_AVAILABLE_WITNESSINGS)
-			return handleOutputs(arrOutputs);
-		// try to split the biggest output in two
-		db.query(
-			"SELECT amount FROM outputs JOIN units USING(unit) \n\
-			WHERE address=? AND is_stable=1 AND amount>=? AND asset IS NULL AND is_spent=0 \n\
-			ORDER BY amount DESC LIMIT 1",
-			[my_address, 2*WITNESSING_COST],
-			function(rows){
-				if (rows.length === 0){
-					notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, and can't add more");
-					return handleOutputs(arrOutputs);
+function replaceConsoleLog(){
+	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
+	var writeStream = fs.createWriteStream(log_filename);
+	console.log('---------------');
+	console.log('From this point, output will be redirected to '+log_filename);
+	console.log("To release the terminal, type Ctrl-Z, then 'bg'");
+	console.log = function(){
+		writeStream.write(Date().toString()+': ');
+		writeStream.write(util.format.apply(null, arguments) + '\n');
+	};
+	console.warn = console.log;
+	console.info = console.log;
+}
+
+setTimeout(function(){
+	supernode.readKeys(function(mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey){
+		var saveTempKeys = function(new_temp_key, new_prev_temp_key, onDone){
+			supernode.writeKeys(mnemonic_phrase, new_temp_key, new_prev_temp_key, onDone);
+		};
+		var mnemonic = new Mnemonic(mnemonic_phrase);
+		// global
+		xPrivKey = mnemonic.toHDPrivateKey(passphrase);
+		var devicePrivKey = xPrivKey.derive("m/1'").privateKey.bn.toBuffer({size:32});
+		// read the id of the only wallet
+		supernode.readSingleWallet(function(wallet){
+			// global
+			wallet_id = wallet;
+			var device = require('trustnote-pow-common/device.js');
+			device.setDevicePrivateKey(devicePrivKey);
+			let my_device_address = device.getMyDeviceAddress();
+			db.query("SELECT 1 FROM extended_pubkeys WHERE device_address=?", [my_device_address], function(rows){
+				if (rows.length > 1)
+					throw Error("more than 1 extended_pubkey?");
+				if (rows.length === 0)
+					return setTimeout(function(){
+						console.log('passphrase is incorrect');
+						process.exit(0);
+					}, 1000);
+				require('trustnote-pow-common/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
+				device.setTempKeys(deviceTempPrivKey, devicePrevTempPrivKey, saveTempKeys);
+				device.setDeviceName(conf.deviceName);
+				device.setDeviceHub(conf.hub);
+				let my_device_pubkey = device.getMyDevicePubKey();
+				console.log("====== my device address: "+my_device_address);
+				console.log("====== my device pubkey: "+my_device_pubkey);
+				if (conf.permanent_pairing_secret)
+					console.log("====== my pairing code: "+my_device_pubkey+"@"+conf.hub+"#"+conf.permanent_pairing_secret);
+				if (conf.bLight){
+					var light_wallet = require('trustnote-pow-common/light_wallet.js');
+					light_wallet.setLightVendorHost(conf.hub);
 				}
-				var amount = rows[0].amount;
-				notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, will split an output of "+amount);
-				arrOutputs.push({amount: Math.round(amount/2), address: my_address});
-				handleOutputs(arrOutputs);
-			}
-		);
+				eventBus.emit('headless_wallet_ready');
+				setTimeout(replaceConsoleLog, 1000);
+			});
+		});
 	});
-}
+}, 1000);
 
-db.query("CREATE UNIQUE INDEX IF NOT EXISTS hcobyAddressSpentMci ON headers_commission_outputs(address, is_spent, main_chain_index)");
-db.query("CREATE UNIQUE INDEX IF NOT EXISTS byWitnessAddressSpentMci ON witnessing_outputs(address, is_spent, main_chain_index)");
+// The below events can arrive only after we read the keys and connect to the hub.
+// The event handlers depend on the global var wallet_id being set, which is set after reading the keys
+
+setInterval(supernode.checkTrustMEAndStartMinig, 10000);
 
 eventBus.on('headless_wallet_ready', function(){
 	if (!conf.admin_email || !conf.from_email){
 		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
 		process.exit(1);
 	}
-	headlessWallet.readSingleAddress(function(address){
+	supernode.setupChatEventHandlers();
+	supernode.readSingleAddress(function(address){
 		my_address = address;
 		//checkAndWitness();
-		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
+		eventBus.on('new_joint', supernode.checkAndWitness); // new_joint event is not sent while we are catching up
 	});
 });
+
+eventBus.on('peer_version', function (ws, body) {
+	if (body.program == conf.clientName) {
+		if (conf.minClientVersion && compareVersions(body.program_version, '1.0.7') == '==')
+			return;
+		if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
+			network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
+		// if (compareVersions(body.program_version, '1.5.1') == '<')
+		// 	ws.close(1000, "mandatory upgrade");
+	}
+});
+
+function compareVersions(currentVersion, minVersion) {
+	if (currentVersion === minVersion) return '==';
+
+	var cV = currentVersion.match(/([0-9])+/g);
+	var mV = minVersion.match(/([0-9])+/g);
+	var l = Math.min(cV.length, mV.length);
+	var diff;
+
+	for (var i = 0; i < l; i++) {
+		diff = parseInt(cV[i], 10) - parseInt(mV[i], 10);
+		if (diff > 0) {
+			return '>';
+		} else if (diff < 0) {
+			return '<'
+		}
+	}
+
+	diff = cV.length - mV.length;
+	if (diff == 0) {
+		return '==';
+	} else if (diff > 0) {
+		return '>';
+	} else if (diff < 0) {
+		return '<';
+	}
+}
