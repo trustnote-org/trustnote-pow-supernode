@@ -92,7 +92,10 @@ setTimeout(function(){
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
-setInterval(supernode.checkTrustMEAndStartMinig, 10000);
+// setInterval(supernode.checkTrustMEAndStartMinig, 10000);
+eventBus.on("launch_coinbase", function(round_index) {
+	
+})
 
 eventBus.on('headless_wallet_ready', function(){
 	if (!conf.admin_email || !conf.from_email){
