@@ -94,7 +94,7 @@ setTimeout(function(){
 
 // setInterval(supernode.checkTrustMEAndStartMinig, 10000);
 eventBus.on("launch_coinbase", function(round_index) {
-	
+	supernode.checkTrustMEAndStartMinig()
 })
 
 eventBus.on('headless_wallet_ready', function(){
