@@ -9,8 +9,8 @@ exports.bLight = false;
 exports.storage = 'sqlite';
 
 
-exports.hub = 'newton.trustnote.org/tn';
-exports.deviceName = 'Witness';
+exports.hub = '127.0.0.1:6616';
+exports.deviceName = 'Supernode';
 exports.permanent_pairing_secret = 'randomstring';
 exports.control_addresses = ['DEVICE ALLOWED TO CHAT'];
 exports.payout_address = 'WHERE THE MONEY CAN BE SENT TO';

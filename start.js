@@ -17,6 +17,8 @@ if (!conf.bSingleAddress)
 
 var appDataDir = desktopApp.getAppDataDir();
 var xPrivKey;
+var wallet_id;
+var my_address;
 
 if (conf.permanent_pairing_secret)
 	db.query(
@@ -103,7 +105,7 @@ eventBus.on('headless_wallet_ready', function(){
 		process.exit(1);
 	}
 	supernode.setupChatEventHandlers();
-	supernode.readSingleAddress(function(address){
+	supernode.readSingleWallet(function(address){
 		my_address = address;
 		//checkAndWitness();
 		eventBus.on('new_joint', supernode.checkAndWitness); // new_joint event is not sent while we are catching up

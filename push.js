@@ -1,6 +1,6 @@
-var db = require('trustnote-common/db');
-var conf = require('trustnote-common/conf');
-var eventBus = require('trustnote-common/event_bus.js');
+var db = require('trustnote-pow-common/db');
+var conf = require('trustnote-pow-common/conf');
+var eventBus = require('trustnote-pow-common/event_bus.js');
 var https = require('https');
 
 

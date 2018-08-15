@@ -36,3 +36,5 @@ Session.vim
 .netrwhist
 *~
 
+# node_module lock file
+package-lock.json
