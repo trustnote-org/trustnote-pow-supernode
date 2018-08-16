@@ -1,5 +1,6 @@
 /*jslint node: true */
 "use strict";
+require('./relay.js');
 var fs = require('fs');
 var crypto = require('crypto');
 var util = require('util');
@@ -8,7 +9,6 @@ var desktopApp = require('trustnote-pow-common/desktop_app.js');
 var db = require('trustnote-pow-common/db.js');
 var eventBus = require('trustnote-pow-common/event_bus.js');
 var Mnemonic = require('bitcore-mnemonic');
-var relay = require('./relay.js');
 var push = require('./push.js');
 var supernode = require('trustnote-pow-common/supernode.js');
 
@@ -34,7 +34,8 @@ function datetime() {
 }
 
 function replaceConsoleLog(){
-	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
+	// var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
+	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
 	var writeStream = fs.createWriteStream(log_filename);
 	console.log('---------------');
 	console.log('From this point, output will be redirected to '+log_filename);
