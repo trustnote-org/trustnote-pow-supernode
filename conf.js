@@ -21,8 +21,8 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "127.0.0.1:6616",
-    "127.0.0.1:6617"
+    "ws://127.0.0.1:6616",
+    "ws://127.0.0.1:6617"
 ];
 
 exports.storage = 'sqlite';
