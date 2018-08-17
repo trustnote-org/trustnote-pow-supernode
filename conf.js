@@ -22,14 +22,11 @@ exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
     "127.0.0.1:6616",
-    "127.0.0.1:6626"
+    "127.0.0.1:6617"
 ];
-
-exports.bLight = false;
 
 exports.storage = 'sqlite';
 
-exports.hub = '127.0.0.1:6626';
 exports.deviceName = 'Supernode';
 exports.permanent_pairing_secret = 'randomstring';
 exports.control_addresses = ['DEVICE ALLOWED TO CHAT'];
