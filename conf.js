@@ -21,7 +21,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://dev.mainchain.pow.trustnote.org:6691",
+    "ws://dev.mainchain.pow.trustnote.org:9191",
 ];
 
 exports.storage = 'sqlite';
