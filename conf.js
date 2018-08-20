@@ -8,7 +8,7 @@ exports.WS_PROTOCOL = 'ws://';
 exports.pushApiProjectNumber = 0;
 exports.pushApiKey = '';
 
-exports.port = 6691;
+exports.port = 9191;
 //exports.myUrl = 'wss://mydomain.com/bb';
 exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
