@@ -73,18 +73,18 @@ setTimeout(function(){
 						process.exit(0);
 					}, 1000);
 				require('trustnote-pow-common/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
-				device.setTempKeys(deviceTempPrivKey, devicePrevTempPrivKey, saveTempKeys);
-				device.setDeviceName(conf.deviceName);
-				device.setDeviceHub(conf.hub);
-				let my_device_pubkey = device.getMyDevicePubKey();
-				console.log("====== my device address: "+my_device_address);
-				console.log("====== my device pubkey: "+my_device_pubkey);
-				if (conf.permanent_pairing_secret)
-					console.log("====== my pairing code: "+my_device_pubkey+"@"+conf.hub+"#"+conf.permanent_pairing_secret);
-				if (conf.bLight){
-					var light_wallet = require('trustnote-pow-common/light_wallet.js');
-					light_wallet.setLightVendorHost(conf.hub);
-				}
+				// device.setTempKeys(deviceTempPrivKey, devicePrevTempPrivKey, saveTempKeys);
+				// device.setDeviceName(conf.deviceName);
+				// device.setDeviceHub(conf.hub);
+				// let my_device_pubkey = device.getMyDevicePubKey();
+				// console.log("====== my device address: "+my_device_address);
+				// console.log("====== my device pubkey: "+my_device_pubkey);
+				// if (conf.permanent_pairing_secret)
+				// 	console.log("====== my pairing code: "+my_device_pubkey+"@"+conf.hub+"#"+conf.permanent_pairing_secret);
+				// if (conf.bLight){
+				// 	var light_wallet = require('trustnote-pow-common/light_wallet.js');
+				// 	light_wallet.setLightVendorHost(conf.hub);
+				// }
 				eventBus.emit('headless_wallet_ready');
 				setTimeout(replaceConsoleLog, 1000);
 			});
