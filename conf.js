@@ -8,7 +8,7 @@ exports.WS_PROTOCOL = 'ws://';
 exports.pushApiProjectNumber = 0;
 exports.pushApiKey = '';
 
-exports.port = 6616;
+exports.port = 6691;
 //exports.myUrl = 'wss://mydomain.com/bb';
 exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
@@ -21,8 +21,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://127.0.0.1:6616",
-    "ws://127.0.0.1:6617"
+    "ws://dev.mainchain.pow.trustnote.org:6691",
 ];
 
 exports.storage = 'sqlite';
