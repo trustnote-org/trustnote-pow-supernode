@@ -568,21 +568,21 @@ function createOptimalOutputs(handleOutputs){
 
 function notifyMinerStopCurrentMiningAndRestart() {
 	// TODO
-	pow.startMining(function(err) {
-		if (err) {
-			// notifyAdminAboutWitnessingProblem(err)
-			setTimeout(notifyMinerStopCurrentMiningAndRestart, 10*1000);
-		}
-	})
+	// pow.startMining(function(err) {
+	// 	if (err) {
+	// 		// notifyAdminAboutWitnessingProblem(err)
+	// 		setTimeout(notifyMinerStopCurrentMiningAndRestart, 10*1000);
+	// 	}
+	// })
 }
 
 function notifyMinerStartMining() {
-	pow.startMining(function(err) {
-		if (err) {
-			// notifyAdminAboutWitnessingProblem(err)
-			setTimeout(notifyMinerStartMining, 10*1000);
-		}
-	})
+	// pow.startMining(function(err) {
+	// 	if (err) {
+	// 		// notifyAdminAboutWitnessingProblem(err)
+	// 		setTimeout(notifyMinerStartMining, 10*1000);
+	// 	}
+	// })
 }
 
 function checkTrustMEAndStartMining(round_index) {
