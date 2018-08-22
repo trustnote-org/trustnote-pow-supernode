@@ -20,6 +20,7 @@ var storage = require('trustnote-pow-common/storage.js');
 var mail = require('trustnote-pow-common/mail.js');
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
+var network = require('trustnote-pow-common/network.js');
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
@@ -70,15 +71,6 @@ var currentRound = 1; // to record current round index
 function onError(err){
 	throw Error(err);
 }
-
-const callbacks = composer.getSavingCallbacks({
-	ifNotEnoughFunds: onError,
-	ifError: onError,
-	ifOk: function(objJoint){
-		network.broadcastJoint(objJoint);
-		onDone();
-	}
-})
 
 function readKeys(onDone){
 	console.log('-----------------------');
@@ -351,6 +343,16 @@ function witness(round_index, onDone){
 		console.log('not connected, skipping');
 		return onDone();
 	}
+
+	const callbacks = composer.getSavingCallbacks({
+		ifNotEnoughFunds: onError,
+		ifError: onError,
+		ifOk: function(objJoint){
+			network.broadcastJoint(objJoint);
+			onDone();
+		}
+	})
+	
 	createOptimalOutputs(function(arrOutputs){
 		if (conf.bPostTimestamp) {
 			var params = {
@@ -584,6 +586,14 @@ function notifyMinerStartMining() {
 
 function checkTrustMEAndStartMining(round_index) {
 	let lastRound = currentRound;
+	const callbacks = composer.getSavingCallbacks({
+		ifNotEnoughFunds: onError,
+		ifError: onError,
+		ifOk: function(objJoint){
+			network.broadcastJoint(objJoint);
+		}
+	})
+	
 	if (currentRound !== round_index) {
 		currentRound = round_index;
 		if (bMining) {
