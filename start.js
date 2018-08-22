@@ -604,7 +604,12 @@ function checkTrustMEAndStartMining(round_index) {
 		}
 		determineIfIAmWitness(lastRound, function(bWitness){
 			if(bWitness) {
-				composer.composeCoinbaseJoint(my_address, lastRound, signer, callbacks)
+				db.takeConnectionFromPool(function(conn){
+					round.getCoinbaseByRoundIndexAndAddress(conn, round_index, my_address, function(coinbase_amount){
+						composer.composeCoinbaseJoint(my_address, lastRound, coinbase_amount, signer, callbacks);
+						conn.release();
+					})
+				});
 			}
 		})
 	}
