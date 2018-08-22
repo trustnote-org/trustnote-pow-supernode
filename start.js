@@ -399,23 +399,24 @@ function checkAndWitness(){
 					bWitnessingUnderWay = false;
 					return console.log('I am not an attestor for now')
 				}
-				storage.readLastMainChainIndex(function(max_mci){
-					let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-					db.query(
-						"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-						[my_address],
-						function(rows){
-							var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-							var distance = max_mci - max_my_mci;
-							console.log("distance="+distance);
-							setTimeout(function(){
-								witness(round_index, function(){
-									bWitnessingUnderWay = false;
-								});
-							}, Math.round(Math.random()*3000));
-						}
-					);
-				});
+				// storage.readLastMainChainIndex(function(max_mci){
+				// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+				// 	db.query(
+				// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+				// 		[my_address],
+				// 		function(rows){
+				// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+				// 			var distance = max_mci - max_my_mci;
+				// 			console.log("distance="+distance);
+				setTimeout(function(){
+					witness(round_index, function(){
+						console.log('witnessing is over');
+						bWitnessingUnderWay = false;
+					});
+				}, Math.round(Math.random()*3000));
+				// 		}
+				// 	);
+				// });
 			});
 		});
 	});
