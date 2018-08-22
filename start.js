@@ -334,7 +334,7 @@ function notifyAdminAboutWitnessingProblem(err){
 
 function witness(round_index, onDone){
 	function onError(err){
-		notifyAdminAboutFailedWitnessing(err);
+		// notifyAdminAboutFailedWitnessing(err);
 		setTimeout(onDone, 60000); // pause after error
 	}
 	var network = require('trustnote-pow-common/network.js');
@@ -553,11 +553,11 @@ function createOptimalOutputs(handleOutputs){
 			[my_address, 2*WITNESSING_COST],
 			function(rows){
 				if (rows.length === 0){
-					notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, and can't add more");
+					// notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, and can't add more");
 					return handleOutputs(arrOutputs);
 				}
 				var amount = rows[0].amount;
-				notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, will split an output of "+amount);
+				// notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, will split an output of "+amount);
 				arrOutputs.push({amount: Math.round(amount/2), address: my_address});
 				handleOutputs(arrOutputs);
 			}
@@ -569,7 +569,7 @@ function notifyMinerStopCurrentMiningAndRestart() {
 	// TODO
 	pow.startMining(function(err) {
 		if (err) {
-			notifyAdminAboutWitnessingProblem(err)
+			// notifyAdminAboutWitnessingProblem(err)
 			setTimeout(notifyMinerStopCurrentMiningAndRestart, 10*1000);
 		}
 	})
@@ -578,7 +578,7 @@ function notifyMinerStopCurrentMiningAndRestart() {
 function notifyMinerStartMining() {
 	pow.startMining(function(err) {
 		if (err) {
-			notifyAdminAboutWitnessingProblem(err)
+			// notifyAdminAboutWitnessingProblem(err)
 			setTimeout(notifyMinerStartMining, 10*1000);
 		}
 	})
