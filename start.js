@@ -685,22 +685,16 @@ eventBus.on("pow_mined_gift", function(solution){
 		}
 	})
 
-	round.getCurrentRoundIndexByDb(function(round_index){
-		db.takeConnectionFromPool(function(conn){
+	db.takeConnectionFromPool(function(conn){
+		round.getCurrentRoundIndex(conn, function(round_index){
 			round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
-				round.getCycleIdByRoundIndex(round_index, function(cycle_index){
-					pow.calculateDifficultyValueByCycleIndex(conn, cycle_index, function(err, difficulty){
-						if(err) {
-							conn.release()
-							throw Error(err)
-						}
-						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution[hash],nonce:solution[nonce]}, signer, callbacks)
-						conn.release()
-					})
-				})
-			})
+				round.getDifficultydByRoundIndex(round_index, function(difficulty){
+					composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution[hash],nonce:solution[nonce]}, signer, callbacks)
+					conn.release()
+				});
+			});
 		});
-	})
+	});
 })
 
 eventBus.on('headless_wallet_ready', function(){
