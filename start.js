@@ -682,6 +682,7 @@ eventBus.on("pow_mined_gift", function(solution){
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
+			console.log('===Pow=== objJoin sent')
 		}
 	})
 
@@ -689,7 +690,7 @@ eventBus.on("pow_mined_gift", function(solution){
 		round.getCurrentRoundIndex(conn, function(round_index){
 			round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
 				round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
-					composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution[hash],nonce:solution[nonce]}, signer, callbacks)
+					composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 					conn.release()
 				});
 			});
