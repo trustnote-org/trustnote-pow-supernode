@@ -691,11 +691,13 @@ eventBus.on("pow_mined_gift", function(solution){
 		db.takeConnectionFromPool(function(conn){
 			pow.calculatePublicSeedByRoundIndex(conn, round_index, function(err, seed){
 				if(err) {
+					conn.release()
 					throw Error(err)
 				}
 				round.getCycleIdByRoundIndex(round_index, function(cycle_index){
 					pow.calculateDifficultyValueByCycleIndex(conn, cycle_index, function(err, difficulty){
 						if(err) {
+							conn.release()
 							throw Error(err)
 						}
 						composer.composePowJoint(my_address, round_index, seed, difficulty, solution, signer, callbacks)
