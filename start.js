@@ -678,6 +678,35 @@ eventBus.on("launch_coinbase", function(round_index) {
 	checkTrustMEAndStartMining(round_index)
 })
 
+eventBus.on("pow_mined_gift", function(solution){
+	const callbacks = composer.getSavingCallbacks({
+		ifNotEnoughFunds: onError,
+		ifError: onError,
+		ifOk: function(objJoint){
+			network.broadcastJoint(objJoint);
+		}
+	})
+
+	round.getCurrentRoundIndexByDb(function(round_index){
+		db.takeConnectionFromPool(function(conn){
+			pow.calculatePublicSeedByRoundIndex(conn, round_index, function(err, seed){
+				if(err) {
+					throw Error(err)
+				}
+				round.getCycleIdByRoundIndex(round_index, function(cycle_index){
+					pow.calculateDifficultyValueByCycleIndex(conn, cycle_index, function(err, difficulty){
+						if(err) {
+							throw Error(err)
+						}
+						composer.composePowJoint(my_address, round_index, seed, difficulty, solution, signer, callbacks)
+						conn.release()
+					})
+				})
+			})
+		});
+	})
+})
+
 eventBus.on('headless_wallet_ready', function(){
 	if (!conf.admin_email || !conf.from_email){
 		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
