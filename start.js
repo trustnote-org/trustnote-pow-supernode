@@ -566,20 +566,9 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-function notifyMinerStopCurrentMiningAndRestart() {
-	// TODO
-	db.takeConnectionFromPool(function(conn){
-		pow.startMining(conn, function(err) {
-			if (err) {
-				// notifyAdminAboutWitnessingProblem(err)
-				setTimeout(notifyMinerStartMining, 10*1000);
-			}
-			else {
-				conn.release();
-			}
-		})
-	});
-}
+eventBus.on('round_switch', function(round_index){
+	pow.stopMining(round_index-1)
+})
 
 function notifyMinerStartMining() {
 	db.takeConnectionFromPool(function(conn){
@@ -595,7 +584,21 @@ function notifyMinerStartMining() {
 	});
 }
 
-function checkTrustMEAndStartMining(round_index) {
+function checkTrustMEAndStartMinig(round_index){
+	db.takeConnectionFromPool(function(conn){
+		round.checkIfHaveFirstTrustMEByRoundIndex(conn, round_index, function(bHaveTrustMe){
+			if(!bHaveTrustMe){
+				return
+			}
+
+			notifyMinerStartMining()
+
+			conn.release()
+		})
+	})
+}
+
+function checkRoundAndComposeCoinbase(round_index) {
 	let lastRound = currentRound;
 	const callbacks = composer.getSavingCallbacks({
 		ifNotEnoughFunds: onError,
@@ -607,12 +610,6 @@ function checkTrustMEAndStartMining(round_index) {
 	
 	if (currentRound !== round_index) {
 		currentRound = round_index;
-		if (bMining) {
-			notifyMinerStopCurrentMiningAndRestart()
-		} else {
-			notifyMinerStartMining()
-			bMining = true;
-		}
 		determineIfIAmWitness(lastRound, function(bWitness){
 			if(bWitness) {
 				db.takeConnectionFromPool(function(conn){
@@ -675,7 +672,8 @@ setTimeout(function(){
 
 // setInterval(supernode.checkTrustMEAndStartMinig, 10000);
 eventBus.on("launch_coinbase", function(round_index) {
-	checkTrustMEAndStartMining(round_index)
+	checkTrustMEAndStartMinig(round_index)
+	checkRoundAndComposeCoinbase(round_index)
 })
 
 eventBus.on("pow_mined_gift", function(solution){
