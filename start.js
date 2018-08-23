@@ -688,7 +688,7 @@ eventBus.on("pow_mined_gift", function(solution){
 	db.takeConnectionFromPool(function(conn){
 		round.getCurrentRoundIndex(conn, function(round_index){
 			round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
-				round.getDifficultydByRoundIndex(round_index, function(difficulty){
+				round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
 					composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution[hash],nonce:solution[nonce]}, signer, callbacks)
 					conn.release()
 				});
