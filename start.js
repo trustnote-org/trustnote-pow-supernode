@@ -608,7 +608,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
-			console.log('Coinbase sent, amount: ' + coinbase_amount)
+			console.log('Coinbase sent')
 		}
 	})
 	
