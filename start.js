@@ -690,6 +690,7 @@ eventBus.on("pow_mined_gift", function(solution){
 		round.getCurrentRoundIndex(conn, function(round_index){
 			round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
 				if(bExist) {
+					conn.release()
 					return console.log('POW already sent');
 				}
 				round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
