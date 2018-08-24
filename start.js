@@ -682,6 +682,10 @@ eventBus.on("launch_coinbase", function(round_index) {
 })
 
 eventBus.on("pow_mined_gift", function(solution){
+
+	if(my_address == constants.FOUNDATION_ADDRESS) {
+		return console.log('Foundation will not mining');
+	}
 	const callbacks = composer.getSavingCallbacks({
 		ifNotEnoughFunds: onError,
 		ifError: onError,
