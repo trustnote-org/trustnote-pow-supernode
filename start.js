@@ -353,29 +353,37 @@ function witness(round_index, onDone){
 		}
 	})
 	
-	createOptimalOutputs(function(arrOutputs){
-		if (conf.bPostTimestamp) {
-			var params = {
-				paying_addresses: [my_address],
-				outputs: arrOutputs,
-				pow_type: constants.POW_TYPE_TRUSTME,
-				round_index: round_index,
-				signer: signer,
-				callbacks: callbacks
+	round.getCurrentRoundIndexByDb(function(round_index){
+		determineIfIAmWitness(round_index, function(bWitness){
+			if(!bWitness) {
+				bWitnessingUnderWay = false;
+				return console.log('I am not an attestor for now')
 			}
-			var timestamp = Date.now();
-			var datafeed = {timestamp: timestamp};
-			var objMessage = {
-				app: "data_feed",
-				payload_location: "inline",
-				payload_hash: objectHash.getBase64Hash(datafeed),
-				payload: datafeed
-			};
-			params.messages = [objMessage];
-			return composer.composeJoint(params);
-		}
-		composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
-	});
+			createOptimalOutputs(function(arrOutputs){
+				if (conf.bPostTimestamp) {
+					var params = {
+						paying_addresses: [my_address],
+						outputs: arrOutputs,
+						pow_type: constants.POW_TYPE_TRUSTME,
+						round_index: round_index,
+						signer: signer,
+						callbacks: callbacks
+					}
+					var timestamp = Date.now();
+					var datafeed = {timestamp: timestamp};
+					var objMessage = {
+						app: "data_feed",
+						payload_location: "inline",
+						payload_hash: objectHash.getBase64Hash(datafeed),
+						payload: datafeed
+					};
+					params.messages = [objMessage];
+					return composer.composeJoint(params);
+				}
+				composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
+			});
+		})
+	})
 }
 
 
@@ -395,6 +403,7 @@ function checkAndWitness(){
 		round.getCurrentRoundIndexByDb(function(round_index){
 			determineIfIAmWitness(round_index, function(bWitness){
 				// pow add
+				console.log('CheckIfIamWitnessRound:'+round_index)
 				if (!bWitness){
 					bWitnessingUnderWay = false;
 					return console.log('I am not an attestor for now')
@@ -608,11 +617,12 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
-			console.log('Coinbase sent')
+			console.log('=== Coinbase sent ===')
 		}
 	})
 	
 	if (currentRound !== round_index) {
+		console.log('Going to compose Coinbase')
 		currentRound = round_index;
 		determineIfIAmWitness(lastRound, function(bWitness){
 			if(bWitness) {
