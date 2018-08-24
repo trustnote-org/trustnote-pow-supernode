@@ -568,18 +568,22 @@ function createOptimalOutputs(handleOutputs){
 
 eventBus.on('round_switch', function(round_index){
 	pow.stopMining(round_index-1)
+	console.log('=== Round Switch === : '+round_index);
 })
 
 function notifyMinerStartMining() {
 	db.takeConnectionFromPool(function(conn){
-		pow.startMining(conn, function(err) {
-			if (err) {
-				// notifyAdminAboutWitnessingProblem(err)
-				setTimeout(notifyMinerStartMining, 10*1000);
-			}
-			else {
-				conn.release();
-			}
+		round.getCurrentRoundIndex(conn, function(round_index){
+			pow.startMining(conn, round_index,function(err) {
+				if (err) {
+					// notifyAdminAboutWitnessingProblem(err)
+					conn.release()
+					setTimeout(notifyMinerStartMining, 10*1000);
+				}
+				else {
+					conn.release();
+				}
+			})
 		})
 	});
 }
@@ -588,6 +592,7 @@ function checkTrustMEAndStartMinig(round_index){
 	db.takeConnectionFromPool(function(conn){
 		round.checkIfHaveFirstTrustMEByRoundIndex(conn, round_index, function(bHaveTrustMe){
 			if(!bHaveTrustMe){
+				conn.release()
 				return
 			}
 
