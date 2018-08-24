@@ -618,7 +618,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 		determineIfIAmWitness(lastRound, function(bWitness){
 			if(bWitness) {
 				db.takeConnectionFromPool(function(conn){
-					round.getCoinbaseByRoundIndexAndAddress(conn, round_index, my_address, function(coinbase_amount){
+					round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
 						composer.composeCoinbaseJoint(my_address, lastRound, coinbase_amount, signer, callbacks);
 						conn.release();
 					})
@@ -682,10 +682,10 @@ eventBus.on("launch_coinbase", function(round_index) {
 })
 
 eventBus.on("pow_mined_gift", function(solution){
-
 	if(my_address == constants.FOUNDATION_ADDRESS) {
-		return console.log('Foundation will not mining');
+		return console.log('Foundation will not mine');
 	}
+
 	const callbacks = composer.getSavingCallbacks({
 		ifNotEnoughFunds: onError,
 		ifError: onError,
