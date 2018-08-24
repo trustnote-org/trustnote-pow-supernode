@@ -595,10 +595,8 @@ function checkTrustMEAndStartMinig(round_index){
 				conn.release()
 				return
 			}
-
-			notifyMinerStartMining()
-
 			conn.release()
+			notifyMinerStartMining()
 		})
 	})
 }
@@ -610,6 +608,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
+			console.log('Coinbase sent, amount: ' + coinbase_amount)
 		}
 	})
 	
@@ -619,8 +618,8 @@ function checkRoundAndComposeCoinbase(round_index) {
 			if(bWitness) {
 				db.takeConnectionFromPool(function(conn){
 					round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
-						composer.composeCoinbaseJoint(my_address, lastRound, coinbase_amount, signer, callbacks);
 						conn.release();
+						composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
 					})
 				});
 			}
@@ -704,8 +703,8 @@ eventBus.on("pow_mined_gift", function(solution){
 				}
 				round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
 					round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
-						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 						conn.release()
+						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 					});
 				});
 			});
