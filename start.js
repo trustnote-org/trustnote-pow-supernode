@@ -356,10 +356,12 @@ function witness(onDone){
 		round.getCurrentRoundIndex(conn, function(round_index){
 			determineIfIAmWitness(round_index, function(bWitness){
 				if(!bWitness) {
+					conn.release()
 					bWitnessingUnderWay = false;
 					return console.log('I am not an attestor for now')
 				}
 				createOptimalOutputs(function(arrOutputs){
+					conn.release()
 					if (conf.bPostTimestamp) {
 						var params = {
 							paying_addresses: [my_address],
@@ -381,7 +383,6 @@ function witness(onDone){
 						return composer.composeJoint(params);
 					}
 					composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
-					conn.release()
 				});
 			})
 		})
