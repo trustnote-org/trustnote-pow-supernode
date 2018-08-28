@@ -670,8 +670,8 @@ function checkRoundAndComposeCoinbase(round_index) {
 						conn.release();
 						composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
 					})
-				});
-			}
+				};
+			});
 		})
 	}
 }
