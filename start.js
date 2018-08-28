@@ -402,59 +402,61 @@ function checkAndWitness(){
 			return console.log('my units without mci');
 		}
 		// pow add
-		round.getCurrentRoundIndexByDb(function(round_index){
-			determineIfIAmWitness(round_index, function(bWitness){
-				// pow add
-				console.log('CheckIfIamWitnessRound:'+round_index)
-				if (!bWitness){
-					bWitnessingUnderWay = false;
-					return console.log('I am not an attestor for now')
-				}
-				// storage.readLastMainChainIndex(function(max_mci){
-				// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-				// 	db.query(
-				// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-				// 		[my_address],
-				// 		function(rows){
-				// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-				// 			var distance = max_mci - max_my_mci;
-				// 			console.log("distance="+distance);
-				// 			// setTimeout(function()
-				// 			// 	witness(round_index, function(){
-				// 			// 		console.log('witnessing is over');
-				// 			// 		bWitnessingUnderWay = false;
-				// 			// 	});
-				// 			// }, Math.round(Math.random()*3000));
-				// 			if (distance > conf.THRESHOLD_DISTANCE){
-				// 				console.log('distance above threshold, will witness');
-				// 				bWitnessingUnderWay = false;
-				// 				checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-				// 			}
-				// 			else{
-				// 				bWitnessingUnderWay = false;
-				// 				checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-				// 			}
-				// 		}
-				// 	);
-				// storage.readLastMainChainIndex(function(max_mci){
-				// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-				// 	db.query(
-				// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-				// 		[my_address],
-				// 		function(rows){
-				// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-				// 			var distance = max_mci - max_my_mci;
-				// 			console.log("distance="+distance);
-				setTimeout(function(){
-					witness(function(){
-						console.log('witnessing is over');
+		db.takeConnectionFromPool(function(conn){
+			round.getCurrentRoundIndex(conn, function(round_index){
+				determineIfIAmWitness(conn, round_index, function(bWitness){
+					// pow add
+					console.log('CheckIfIamWitnessRound:'+round_index)
+					if (!bWitness){
 						bWitnessingUnderWay = false;
-					});
-				}, Math.round(Math.random()*3000));
-				// 		}
-				// 	);
-				// });
-			});
+						return console.log('I am not an attestor for now')
+					}
+					// storage.readLastMainChainIndex(function(max_mci){
+					// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+					// 	db.query(
+					// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+					// 		[my_address],
+					// 		function(rows){
+					// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+					// 			var distance = max_mci - max_my_mci;
+					// 			console.log("distance="+distance);
+					// 			// setTimeout(function()
+					// 			// 	witness(round_index, function(){
+					// 			// 		console.log('witnessing is over');
+					// 			// 		bWitnessingUnderWay = false;
+					// 			// 	});
+					// 			// }, Math.round(Math.random()*3000));
+					// 			if (distance > conf.THRESHOLD_DISTANCE){
+					// 				console.log('distance above threshold, will witness');
+					// 				bWitnessingUnderWay = false;
+					// 				checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+					// 			}
+					// 			else{
+					// 				bWitnessingUnderWay = false;
+					// 				checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
+					// 			}
+					// 		}
+					// 	);
+					// storage.readLastMainChainIndex(function(max_mci){
+					// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+					// 	db.query(
+					// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+					// 		[my_address],
+					// 		function(rows){
+					// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+					// 			var distance = max_mci - max_my_mci;
+					// 			console.log("distance="+distance);
+					setTimeout(function(){
+						witness(function(){
+							console.log('witnessing is over');
+							bWitnessingUnderWay = false;
+						});
+					}, Math.round(Math.random()*3000));
+					// 		}
+					// 	);
+					// });
+				});
+			})
 		})
 	});
 }
@@ -536,19 +538,22 @@ function witnessBeforeThreshold(){
 			return console.log('my units without mci');
 		}
 		// pow add
-		round.getCurrentRoundIndex(conn, function(round_index){
-			determineIfIAmWitness(round_index, function(bWitness){
-				// pow add
-				if (!bWitness){
-					bWitnessingUnderWay = false;
-					return console.log('I am not an attestor for now')
-				}
-				console.log('will witness before threshold');
-				witness(conn, function(){
-					bWitnessingUnderWay = false;
+		db.takeConnectionFromPool(function(conn){
+			round.getCurrentRoundIndex(conn, function(round_index){
+				determineIfIAmWitness(round_index, function(bWitness){
+					conn.release()
+					// pow add
+					if (!bWitness){
+						bWitnessingUnderWay = false;
+						return console.log('I am not an attestor for now')
+					}
+					console.log('will witness before threshold');
+					witness(conn, function(){
+						bWitnessingUnderWay = false;
+					});
 				});
 			});
-		});
+		})	
 	});
 }
 
@@ -657,9 +662,9 @@ function checkRoundAndComposeCoinbase(round_index) {
 	if (currentRound !== round_index) {
 		console.log('Going to compose Coinbase')
 		currentRound = round_index;
-		determineIfIAmWitness(lastRound, function(bWitness){
-			if(bWitness) {
-				db.takeConnectionFromPool(function(conn){
+		db.takeConnectionFromPool(function(conn){
+			determineIfIAmWitness(conn, lastRound, function(bWitness){
+				if(bWitness) {
 					round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
 						conn.release();
 						composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
