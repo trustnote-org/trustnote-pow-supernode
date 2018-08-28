@@ -354,14 +354,13 @@ function witness(onDone){
 	})
 	db.takeConnectionFromPool(function(conn){
 		round.getCurrentRoundIndex(conn, function(round_index){
-			determineIfIAmWitness(round_index, function(bWitness){
+			determineIfIAmWitness(conn, round_index, function(bWitness){
+				conn.release()
 				if(!bWitness) {
-					conn.release()
 					bWitnessingUnderWay = false;
 					return console.log('I am not an attestor for now')
 				}
 				createOptimalOutputs(function(arrOutputs){
-					conn.release()
 					if (conf.bPostTimestamp) {
 						var params = {
 							paying_addresses: [my_address],
@@ -461,9 +460,9 @@ function checkAndWitness(){
 }
 
 // pow add
-function determineIfIAmWitness(round_index, handleResult){
-	round.getWitnessesByRoundIndexByDb(round_index, function(arrWitnesses){
-		db.query(
+function determineIfIAmWitness(conn, round_index, handleResult){
+	round.getWitnessesByRoundIndex(conn, round_index, function(arrWitnesses){
+		conn.query(
 			"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
 				if(rows.length===0) {
 					return handleResult(false)
