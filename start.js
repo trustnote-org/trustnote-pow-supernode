@@ -405,6 +405,7 @@ function checkAndWitness(){
 		db.takeConnectionFromPool(function(conn){
 			round.getCurrentRoundIndex(conn, function(round_index){
 				determineIfIAmWitness(conn, round_index, function(bWitness){
+					conn.release()
 					// pow add
 					console.log('CheckIfIamWitnessRound:'+round_index)
 					if (!bWitness){
