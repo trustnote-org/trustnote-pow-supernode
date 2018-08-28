@@ -332,7 +332,7 @@ function notifyAdminAboutWitnessingProblem(err){
 }
 
 
-function witness(conn, onDone){
+function witness(onDone){
 	function onError(err){
 		// notifyAdminAboutFailedWitnessing(err);
 		setTimeout(onDone, 60000); // pause after error
@@ -352,36 +352,38 @@ function witness(conn, onDone){
 			onDone();
 		}
 	})
-	
-	round.getCurrentRoundIndexByDb(function(round_index){
-		determineIfIAmWitness(round_index, function(bWitness){
-			if(!bWitness) {
-				bWitnessingUnderWay = false;
-				return console.log('I am not an attestor for now')
-			}
-			createOptimalOutputs(function(arrOutputs){
-				if (conf.bPostTimestamp) {
-					var params = {
-						paying_addresses: [my_address],
-						outputs: arrOutputs,
-						pow_type: constants.POW_TYPE_TRUSTME,
-						round_index: round_index,
-						signer: signer,
-						callbacks: callbacks
-					}
-					var timestamp = Date.now();
-					var datafeed = {timestamp: timestamp};
-					var objMessage = {
-						app: "data_feed",
-						payload_location: "inline",
-						payload_hash: objectHash.getBase64Hash(datafeed),
-						payload: datafeed
-					};
-					params.messages = [objMessage];
-					return composer.composeJoint(params);
+	db.takeConnectionFromPool(function(conn){
+		round.getCurrentRoundIndex(conn, function(round_index){
+			determineIfIAmWitness(round_index, function(bWitness){
+				if(!bWitness) {
+					bWitnessingUnderWay = false;
+					return console.log('I am not an attestor for now')
 				}
-				composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
-			});
+				createOptimalOutputs(function(arrOutputs){
+					if (conf.bPostTimestamp) {
+						var params = {
+							paying_addresses: [my_address],
+							outputs: arrOutputs,
+							pow_type: constants.POW_TYPE_TRUSTME,
+							round_index: round_index,
+							signer: signer,
+							callbacks: callbacks
+						}
+						var timestamp = Date.now();
+						var datafeed = {timestamp: timestamp};
+						var objMessage = {
+							app: "data_feed",
+							payload_location: "inline",
+							payload_hash: objectHash.getBase64Hash(datafeed),
+							payload: datafeed
+						};
+						params.messages = [objMessage];
+						return composer.composeJoint(params);
+					}
+					composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
+					conn.release()
+				});
+			})
 		})
 	})
 }
@@ -400,61 +402,58 @@ function checkAndWitness(){
 			return console.log('my units without mci');
 		}
 		// pow add
-		db.takeConnectionFromPool(function(conn){
-			round.getCurrentRoundIndex(conn, function(round_index){
-				determineIfIAmWitness(round_index, function(bWitness){
-					// pow add
-					console.log('CheckIfIamWitnessRound:'+round_index)
-					if (!bWitness){
+		round.getCurrentRoundIndexByDb(function(round_index){
+			determineIfIAmWitness(round_index, function(bWitness){
+				// pow add
+				console.log('CheckIfIamWitnessRound:'+round_index)
+				if (!bWitness){
+					bWitnessingUnderWay = false;
+					return console.log('I am not an attestor for now')
+				}
+				// storage.readLastMainChainIndex(function(max_mci){
+				// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+				// 	db.query(
+				// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+				// 		[my_address],
+				// 		function(rows){
+				// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+				// 			var distance = max_mci - max_my_mci;
+				// 			console.log("distance="+distance);
+				// 			// setTimeout(function()
+				// 			// 	witness(round_index, function(){
+				// 			// 		console.log('witnessing is over');
+				// 			// 		bWitnessingUnderWay = false;
+				// 			// 	});
+				// 			// }, Math.round(Math.random()*3000));
+				// 			if (distance > conf.THRESHOLD_DISTANCE){
+				// 				console.log('distance above threshold, will witness');
+				// 				bWitnessingUnderWay = false;
+				// 				checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+				// 			}
+				// 			else{
+				// 				bWitnessingUnderWay = false;
+				// 				checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
+				// 			}
+				// 		}
+				// 	);
+				// storage.readLastMainChainIndex(function(max_mci){
+				// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+				// 	db.query(
+				// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+				// 		[my_address],
+				// 		function(rows){
+				// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+				// 			var distance = max_mci - max_my_mci;
+				// 			console.log("distance="+distance);
+				setTimeout(function(){
+					witness(function(){
+						console.log('witnessing is over');
 						bWitnessingUnderWay = false;
-						return console.log('I am not an attestor for now')
-					}
-					// storage.readLastMainChainIndex(function(max_mci){
-					// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-					// 	db.query(
-					// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-					// 		[my_address],
-					// 		function(rows){
-					// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-					// 			var distance = max_mci - max_my_mci;
-					// 			console.log("distance="+distance);
-					// 			// setTimeout(function()
-					// 			// 	witness(round_index, function(){
-					// 			// 		console.log('witnessing is over');
-					// 			// 		bWitnessingUnderWay = false;
-					// 			// 	});
-					// 			// }, Math.round(Math.random()*3000));
-					// 			if (distance > conf.THRESHOLD_DISTANCE){
-					// 				console.log('distance above threshold, will witness');
-					// 				bWitnessingUnderWay = false;
-					// 				checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-					// 			}
-					// 			else{
-					// 				bWitnessingUnderWay = false;
-					// 				checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-					// 			}
-					// 		}
-					// 	);
-					// storage.readLastMainChainIndex(function(max_mci){
-					// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-					// 	db.query(
-					// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-					// 		[my_address],
-					// 		function(rows){
-					// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-					// 			var distance = max_mci - max_my_mci;
-					// 			console.log("distance="+distance);
-					setTimeout(function(){
-						witness(conn, function(){
-							conn.release()
-							console.log('witnessing is over');
-							bWitnessingUnderWay = false;
-						});
-					}, Math.round(Math.random()*3000));
-					// 		}
-					// 	);
-					// });
-				});
+					});
+				}, Math.round(Math.random()*3000));
+				// 		}
+				// 	);
+				// });
 			});
 		})
 	});
@@ -537,22 +536,19 @@ function witnessBeforeThreshold(){
 			return console.log('my units without mci');
 		}
 		// pow add
-		db.takeConnectionFromPool(function(conn){
-			round.getCurrentRoundIndex(conn, function(round_index){
-				determineIfIAmWitness(round_index, function(bWitness){
-					// pow add
-					if (!bWitness){
-						bWitnessingUnderWay = false;
-						return console.log('I am not an attestor for now')
-					}
-					console.log('will witness before threshold');
-					witness(conn, function(){
-						conn.release()
-						bWitnessingUnderWay = false;
-					});
+		round.getCurrentRoundIndex(conn, function(round_index){
+			determineIfIAmWitness(round_index, function(bWitness){
+				// pow add
+				if (!bWitness){
+					bWitnessingUnderWay = false;
+					return console.log('I am not an attestor for now')
+				}
+				console.log('will witness before threshold');
+				witness(conn, function(){
+					bWitnessingUnderWay = false;
 				});
 			});
-		})
+		});
 	});
 }
 
