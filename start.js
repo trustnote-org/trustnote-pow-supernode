@@ -541,7 +541,7 @@ function witnessBeforeThreshold(){
 		// pow add
 		db.takeConnectionFromPool(function(conn){
 			round.getCurrentRoundIndex(conn, function(round_index){
-				determineIfIAmWitness(round_index, function(bWitness){
+				determineIfIAmWitness(conn, round_index, function(bWitness){
 					conn.release()
 					// pow add
 					if (!bWitness){
