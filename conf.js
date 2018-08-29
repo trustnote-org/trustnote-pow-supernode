@@ -9,7 +9,7 @@ exports.pushApiProjectNumber = 0;
 exports.pushApiKey = '';
 
 exports.port = 9191;
-//exports.myUrl = 'wss://mydomain.com/bb';
+//exports.myUrl = 'ws://10.10.11.68:9191';
 exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
 exports.bLight = false;
@@ -21,7 +21,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://dev.mainchain.pow.trustnote.org:9191",
+    "ws://10.10.11.95:9191",
 ];
 
 exports.storage = 'sqlite';
