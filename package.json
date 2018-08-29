@@ -24,7 +24,6 @@
   "dependencies": {
     "bitcore-lib": "^0.13.14",
     "bitcore-mnemonic": "~1.0.0",
-    "trustnote-pow-common": "git+https://github.com/trustnote/trustnote-pow-common.git#dev",
-    "trustnote-pow-miner": "git+https://github.com/trustnote/trustnote-pow-miner.git"
+    "trustnote-pow-common": "git+https://github.com/trustnote/trustnote-pow-common.git#dev"
   }
 }
