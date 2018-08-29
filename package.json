@@ -22,8 +22,10 @@
     "secp256k1": "secp256k1/js"
   },
   "dependencies": {
-    "trustnote-pow-common": "git+https://github.com/trustnote/trustnote-pow-common.git#dev",
+    "ref": ">=1.0",
+    "ffi": ">=1.0",
     "bitcore-lib": "^0.13.14",
-    "bitcore-mnemonic": "~1.0.0"
+    "bitcore-mnemonic": "~1.0.0",
+    "trustnote-pow-common": "git+https://github.com/trustnote/trustnote-pow-common.git#dev"
   }
 }
