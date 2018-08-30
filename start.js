@@ -438,24 +438,13 @@ function checkAndWitness(){
 					// 			}
 					// 		}
 					// 	);
-					// storage.readLastMainChainIndex(function(max_mci){
-					// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-					// 	db.query(
-					// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-					// 		[my_address],
-					// 		function(rows){
-					// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-					// 			var distance = max_mci - max_my_mci;
-					// 			console.log("distance="+distance);
+					// });
 					setTimeout(function(){
 						witness(function(){
 							console.log('witnessing is over');
 							bWitnessingUnderWay = false;
 						});
 					}, Math.round(Math.random()*3000));
-					// 		}
-					// 	);
-					// });
 				});
 			})
 		})
@@ -741,6 +730,9 @@ eventBus.on("pow_mined_gift", function(solution){
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
 			console.log('===Pow=== objJoin sent')
+			setTimeout(function(){
+				checkTrustMEAndStartMinig(round_index);
+			}, 10*1000);
 		}
 	})
 
