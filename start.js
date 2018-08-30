@@ -730,11 +730,6 @@ eventBus.on("pow_mined_gift", function(solution){
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
 			console.log('===Pow=== objJoin sent')
-			setTimeout(function(){
-				round.getCurrentRoundIndexByDb(function(round_index){
-					checkTrustMEAndStartMinig(round_index);
-				})
-			}, 10*1000);
 		}
 	})
 
