@@ -1,0 +1,30 @@
+{
+  "name": "trustnote-pow-supernode",
+  "description": "TrustNote POW Supernode",
+  "author": "Trustnote",
+  "version": "0.1.0",
+  "main": "start.js",
+  "keywords": [
+    "supernode",
+    "pow",
+    "trustnote"
+  ],
+  "license": "MIT",
+  "repository": {
+    "url": "https://github.com/trustnote/trustnote-pow-supernode.git",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/trustnote/trustnote-pow-supernode/issues"
+  },
+  "browser": {
+    "request": "browser-request",
+    "secp256k1": "secp256k1/js"
+  },
+  "dependencies": {
+    "bitcore-lib": "^0.13.14",
+    "bitcore-mnemonic": "~1.0.0",
+    "trustnote-pow-common": "git+https://github.com/trustnote/trustnote-pow-common.git#dev",
+    "trustnote-pow-miner": "git+https://github.com/trustnote/trustnote-pow-miner.git"
+  }
+}
