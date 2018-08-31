@@ -21,6 +21,8 @@ var mail = require('trustnote-pow-common/mail.js');
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
 var network = require('trustnote-pow-common/network.js');
+var mutex = require('trustnote-pow-common/mutex.js');
+var validationUtils = require("trustnote-pow-common/validation_utils.js");
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
@@ -412,39 +414,39 @@ function checkAndWitness(){
 						bWitnessingUnderWay = false;
 						return console.log('I am not an attestor for now')
 					}
-					// storage.readLastMainChainIndex(function(max_mci){
-					// 	let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-					// 	db.query(
-					// 		"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
-					// 		[my_address],
-					// 		function(rows){
-					// 			var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-					// 			var distance = max_mci - max_my_mci;
-					// 			console.log("distance="+distance);
-					// 			// setTimeout(function()
-					// 			// 	witness(round_index, function(){
-					// 			// 		console.log('witnessing is over');
-					// 			// 		bWitnessingUnderWay = false;
-					// 			// 	});
-					// 			// }, Math.round(Math.random()*3000));
-					// 			if (distance > conf.THRESHOLD_DISTANCE){
-					// 				console.log('distance above threshold, will witness');
-					// 				bWitnessingUnderWay = false;
-					// 				checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-					// 			}
-					// 			else{
-					// 				bWitnessingUnderWay = false;
-					// 				checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-					// 			}
-					// 		}
-					// 	);
-					// });
-					setTimeout(function(){
-						witness(function(){
-							console.log('witnessing is over');
-							bWitnessingUnderWay = false;
-						});
-					}, Math.round(Math.random()*3000));
+					storage.readLastMainChainIndex(function(max_mci){
+						let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
+						db.query(
+							"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+							[my_address],
+							function(rows){
+								var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
+								var distance = max_mci - max_my_mci;
+								console.log("distance="+distance);
+								// setTimeout(function()
+								// 	witness(round_index, function(){
+								// 		console.log('witnessing is over');
+								// 		bWitnessingUnderWay = false;
+								// 	});
+								// }, Math.round(Math.random()*3000));
+								if (distance > conf.THRESHOLD_DISTANCE){
+									console.log('distance above threshold, will witness');
+									bWitnessingUnderWay = false;
+									checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
+								}
+								else{
+									bWitnessingUnderWay = false;
+									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
+								}
+							}
+						);
+					});
+					// setTimeout(function(){
+					// 	witness(function(){
+					// 		console.log('witnessing is over');
+					// 		bWitnessingUnderWay = false;
+					// 	});
+					// }, Math.round(Math.random()*3000));
 				});
 			})
 		})
@@ -800,4 +802,270 @@ function compareVersions(currentVersion, minVersion) {
 	} else if (diff < 0) {
 		return '<';
 	}
+}
+
+function issueChangeAddressAndSendPayment(asset, amount, to_address, device_address, onDone){
+	if (conf.bSingleAddress){
+		readSingleAddress(function(change_address){
+			sendPayment(asset, amount, to_address, change_address, device_address, onDone);
+		});
+	}
+	else if (conf.bStaticChangeAddress){
+		issueOrSelectStaticChangeAddress(function(change_address){
+			sendPayment(asset, amount, to_address, change_address, device_address, onDone);
+		});
+	}
+	else{
+		var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
+		walletDefinedByKeys.issueOrSelectNextChangeAddress(wallet_id, function(objAddr){
+			sendPayment(asset, amount, to_address, objAddr.address, device_address, onDone);
+		});
+	}
+}
+
+function getMyStatus(){
+	db.query("SELECT count(*) FROM units JOIN unit_authors USING(unit) where address=? and pow_type=1", [my_address], function(mine_rows){
+		db.query("SELECT sum(amount) FROM outputs JOIN units USING(unit) where pow_type=3 and address=?", [my_address], function(coinbase_rows){
+			Wallet.readBalance(wallet_id, function(balances) {
+				round.getCurrentRoundIndexByDb(function(round_index){
+					cb(null, {mine:mine_rows[0], coinbase:coinbase_rows[0], balance:balances, current_round:round_index})
+				})
+			});
+		})
+	})
+}
+
+function initRPC() {
+	var rpc = require('json-rpc2');
+	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
+	var Wallet = require('trustnote-pow-common/wallet.js');
+	var balances = require('trustnote-pow-common/balances.js');
+
+	var server = rpc.Server.$create({
+		'websocket': true, // is true by default
+		'headers': { // allow custom headers is empty by default
+			'Access-Control-Allow-Origin': '*'
+		}
+	});
+
+	/**
+	 * Returns information about the current state.
+	 * @return { last_mci: {Integer}, last_stable_mci: {Integer}, count_unhandled: {Integer} }
+	 */
+	server.expose('getinfo', function(args, opt, cb) {
+		var response = {};
+		storage.readLastMainChainIndex(function(last_mci){
+			response.last_mci = last_mci;
+			storage.readLastStableMcIndex(db, function(last_stable_mci){
+				response.last_stable_mci = last_stable_mci;
+				db.query("SELECT COUNT(*) AS count_unhandled FROM unhandled_joints", function(rows){
+					response.count_unhandled = rows[0].count_unhandled;
+					cb(null, response);
+				});
+			});
+		});
+	});
+
+	/**
+	 * Creates and returns new wallet address.
+	 * @return {String} address
+	 */
+	server.expose('getnewaddress', function(args, opt, cb) {
+		mutex.lock(['rpc_getnewaddress'], function(unlock){
+			walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(addressInfo) {
+				unlock();
+				cb(null, addressInfo.address);
+			});
+		});
+	});
+	
+	/**
+	 * get all wallet address.
+	 * @return [String] address
+	 */
+	server.expose('getalladdress', function(args, opt, cb) {
+		if(args.length > 0) {
+			var address = args[0];
+		}
+		mutex.lock(['rpc_getalladdress'], function(unlock){
+			walletDefinedByKeys.readAllAddressesAndIndex(wallet_id, function(addressList) {
+				unlock();
+				if(address) {
+					var is_exist = false;
+					for (var i in addressList) {
+					    if (addressList[i].indexOf(address) > 0) {
+						cb(null, addressList[i]);
+						is_exist = true;
+						break;
+					    }
+					}
+					if(!is_exist)
+						cb("unknow address");
+				}
+				else {
+					cb(null, addressList);
+				}
+			});
+		});
+	});
+
+	/**
+	 * check address is valid.
+	 * @return [string] msg
+	 */
+	server.expose('checkAddress', function(args, opt, cb) {
+		var address = args[0];
+		if(address) {
+			if(validationUtils.isValidAddress(address)) {
+				cb(null, "ok");
+			}
+			else {
+				cb("invalid address");
+			}
+		}
+		else {
+			cb("invalid address");
+		}
+	});
+
+	/**
+	 * Returns address balance(stable and pending).
+	 * If address is invalid, then returns "invalid address".
+	 * If your wallet doesn`t own the address, then returns "address not found".
+	 * @param {String} address
+	 * @return {"base":{"stable":{Integer},"pending":{Integer}}} balance
+	 *
+	 * If no address supplied, returns wallet balance(stable and pending).
+	 * @return {"base":{"stable":{Integer},"pending":{Integer}}} balance
+	 */
+	server.expose('getbalance', function(args, opt, cb) {
+		var address = args[0];
+		if (address) {
+			if (validationUtils.isValidAddress(address))
+				db.query("SELECT COUNT(*) AS count FROM my_addresses WHERE address = ?", [address], function(rows) {
+					if (rows[0].count)
+						db.query(
+							"SELECT asset, is_stable, SUM(amount) AS balance \n\
+							FROM outputs JOIN units USING(unit) \n\
+							WHERE is_spent=0 AND address=? AND sequence='good' AND asset IS NULL \n\
+							GROUP BY is_stable", [address],
+							function(rows) {
+								var balance = {
+									base: {
+										stable: 0,
+										pending: 0
+									}
+								};
+								for (var i = 0; i < rows.length; i++) {
+									var row = rows[i];
+									balance.base[row.is_stable ? 'stable' : 'pending'] = row.balance;
+								}
+								cb(null, balance);
+							}
+						);
+					else
+						cb("address not found");
+				});
+			else
+				cb("invalid address");
+		}
+		else
+			Wallet.readBalance(wallet_id, function(balances) {
+				cb(null, balances);
+			});
+	});
+
+	/**
+	 * Returns wallet balance(stable and pending) without commissions earned from headers and witnessing.
+	 *
+	 * @return {"base":{"stable":{Integer},"pending":{Integer}}} balance
+	 */
+	server.expose('getmainbalance', function(args, opt, cb) {
+		balances.readOutputsBalance(wallet_id, function(balances) {
+			cb(null, balances);
+		});
+	});
+
+	/**
+	 * Returns transaction list.
+	 * If address is invalid, then returns "invalid address".
+	 * @param {String} address or {since_mci: {Integer}, unit: {String}}
+	 * @return [{"action":{'invalid','received','sent','moved'},"amount":{Integer},"my_address":{String},"arrPayerAddresses":[{String}],"confirmations":{0,1},"unit":{String},"fee":{Integer},"time":{String},"level":{Integer},"asset":{String}}] transactions
+	 *
+	 * If no address supplied, returns wallet transaction list.
+	 * @return [{"action":{'invalid','received','sent','moved'},"amount":{Integer},"my_address":{String},"arrPayerAddresses":[{String}],"confirmations":{0,1},"unit":{String},"fee":{Integer},"time":{String},"level":{Integer},"asset":{String}}] transactions
+	 */
+	server.expose('listtransactions', function(args, opt, cb) {
+		if (Array.isArray(args) && typeof args[0] === 'string') {
+			var address = args[0];
+			if (validationUtils.isValidAddress(address))
+				Wallet.readTransactionHistory({address: address}, function(result) {
+					cb(null, result);
+				});
+			else
+				cb("invalid address");
+		}
+		else{
+			var opts = {wallet: wallet_id};
+			if (args.unit && validationUtils.isValidBase64(args.unit, constants.HASH_LENGTH))
+				opts.unit = args.unit;
+			else if (args.since_mci && validationUtils.isNonnegativeInteger(args.since_mci))
+				opts.since_mci = args.since_mci;
+			else
+				opts.limit = 200;
+			Wallet.readTransactionHistory(opts, function(result) {
+				cb(null, result);
+			});
+		}
+
+	});
+
+	/**
+	 * Send funds to address.
+	 * If address is invalid, then returns "invalid address".
+	 * @param {String} address
+	 * @param {Integer} amount
+	 * @return {String} status
+	 */
+	server.expose('sendtoaddress', function(args, opt, cb) {
+		// return cb(null, null);
+		var amount = args[1];
+		var toAddress = args[0];
+		if (amount && toAddress) {
+			if(typeof amount != "number" || amount <= 0) {
+				cb("amount must be positive");
+			}
+			if (validationUtils.isValidAddress(toAddress))
+				issueChangeAddressAndSendPayment(null, amount, toAddress, null, function(err, unit) {
+					cb(err, err ? undefined : unit);
+				});
+			else
+				cb("invalid address");
+		}
+		else
+			cb("wrong parameters");
+	});
+
+	/**
+	 * Get Miner info
+	 * @return {String} status
+	 */
+	server.expose('miningStatus', function(args, opt, cb){
+		getMyStatus(function(err, Status){
+			if(err){
+				return cb(err)
+			}
+			cb(null, JSON.stringify(Status))
+		})
+	})
+
+	readSingleWallet(function(_wallet_id) {
+		wallet_id = _wallet_id;
+		// listen creates an HTTP server on localhost only
+		server.listen(conf.rpcPort, conf.rpcInterface);
+	});
+}
+
+if(conf.bServeAsRpc){
+	eventBus.on('headless_wallet_ready', initRPC);
 }
