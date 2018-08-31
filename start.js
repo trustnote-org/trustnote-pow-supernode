@@ -823,6 +823,16 @@ function issueChangeAddressAndSendPayment(asset, amount, to_address, device_addr
 	}
 }
 
+function getMyStatus(){
+	db.query("SELECT count(*) FROM units JOIN unit_authors USING(unit) where address=? and pow_type=1", [my_address], function(mine_rows){
+		db.query("SELECT sum(amount) FROM outputs JOIN units USING(unit) where pow_type=3 and address=?", [my_address], function(coinbase_rows){
+			Wallet.readBalance(wallet_id, function(balances) {
+				cb(null, {mine:mine_rows[0], coinbase:coinbase_rows[0], balance:balances})
+			});
+		})
+	})
+}
+
 function initRPC() {
 	var rpc = require('json-rpc2');
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
@@ -1033,6 +1043,19 @@ function initRPC() {
 		else
 			cb("wrong parameters");
 	});
+
+	/**
+	 * Get Miner info
+	 * @return {String} status
+	 */
+	server.expose('miningStatus', function(args, opt, cb){
+		getMyStatus(function(err, Status){
+			if(err){
+				return cb(err)
+			}
+			cb(null, JSON.stringify(Status))
+		})
+	})
 
 	readSingleWallet(function(_wallet_id) {
 		wallet_id = _wallet_id;
