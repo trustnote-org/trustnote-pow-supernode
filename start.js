@@ -540,7 +540,7 @@ function witnessBeforeThreshold(){
 						return console.log('I am not an attestor for now')
 					}
 					console.log('will witness before threshold');
-					witness(conn, function(){
+					witness(function(){
 						bWitnessingUnderWay = false;
 					});
 				});
