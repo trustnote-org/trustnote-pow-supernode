@@ -601,8 +601,18 @@ function createOptimalOutputs(handleOutputs){
 }
 
 eventBus.on('round_switch', function(round_index){
+	clearInterval(miner)
+	bMining = false;
 	pow.stopMining(round_index-1)
 	console.log('=== Round Switch === : '+round_index);
+	miner = setInterval(function(){
+		round.getCurrentRoundIndexByDb(function(round_index){
+			if(bMining) {
+				return
+			}
+			checkTrustMEAndStartMinig(round_index);
+			bMining = true
+		})},10*1000);
 })
 
 // function notifyMinerStartMining() {
@@ -714,11 +724,25 @@ setTimeout(function(){
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
-// setInterval(supernode.checkTrustMEAndStartMinig, 10000);
-eventBus.on("launch_coinbase", function(round_index) {
-	checkTrustMEAndStartMinig(round_index)
-	checkRoundAndComposeCoinbase(round_index)
-})
+let miner = setInterval(function(){
+	round.getCurrentRoundIndexByDb(function(round_index){
+		if(bMining) {
+			return
+		}
+		checkTrustMEAndStartMinig(round_index);
+		bMining = true
+	})},10*1000);
+
+setInterval(function(){
+	round.getCurrentRoundIndexByDb(function(round_index){
+		checkRoundAndComposeCoinbase(round_index);
+	})
+}, 5*1000);
+
+// eventBus.on("launch_coinbase", function(round_index) {
+// 	checkTrustMEAndStartMinig(round_index)
+// 	checkRoundAndComposeCoinbase(round_index)
+// })
 
 eventBus.on("pow_mined_gift", function(solution){
 	console.log('===Will compose POW joint===');
@@ -746,6 +770,8 @@ eventBus.on("pow_mined_gift", function(solution){
 					round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
 						conn.release()
 						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
+						clearInterval(miner)
+						bMining = false;
 					});
 				});
 			});
