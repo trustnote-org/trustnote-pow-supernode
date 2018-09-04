@@ -626,13 +626,21 @@ eventBus.on('round_switch', function(round_index){
 
 function checkTrustMEAndStartMinig(round_index){
 	db.takeConnectionFromPool(function(conn){
-		pow.startMining(conn, round_index,function(err) {
-			if (err) {
-				// notifyAdminAboutWitnessingProblem(err)
-				conn.release()
-				setTimeout(function(){
-					checkTrustMEAndStartMinig(round_index);
-				}, 10*1000);
+		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
+		[round_index, constants.POW_TYPE_TRUSTME], function(rows){
+			if(rows.length>=1){
+				pow.startMining(conn, round_index,function(err) {
+					if (err) {
+						// notifyAdminAboutWitnessingProblem(err)
+						conn.release()
+						bMining = false;
+						console.log("Mining Error:" + err);
+					}
+					else {
+						bMining = true;
+						conn.release();
+					}
+				})
 			}
 			else {
 				conn.release();
@@ -655,21 +663,27 @@ function checkRoundAndComposeCoinbase(round_index) {
 	db.takeConnectionFromPool(function(conn){
 		determineIfIAmWitness(conn, round_index-1, function(bWitness){
 			if(bWitness) {
-				conn.query("SELECT address from units join unit_authors where pow_type=1 and round_index=?", [round_index], function(){
-					if(rows.length < 8) {
-						if(rows.indexOf(my_address) <= 0) {
-							round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
+				conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
+				[round_index, constants.POW_TYPE_TRUSTME], function(rows){
+					if(rows.length >= 1) {
+						conn.query("select 1 from units join unit_authors using(unit) where address=? and pow_type=? and round_index=?",
+						[my_address, constants.POW_TYPE_COIN_BASE, round_index], function(rows){
+							if(rows.length<=0){
+								round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
+									conn.release();
+									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
+								})
+							} else {
 								conn.release();
-								composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
-							})
-						} else {
-							conn.release();
-						}
+							}
+						})
 					} else {
 						conn.release();
 					}
 				})
-			};
+			} else {
+				conn.release();
+			}
 		});
 	})
 }
@@ -723,27 +737,22 @@ setTimeout(function(){
 
 setInterval(function(){
 	round.getCurrentRoundIndexByDb(function(round_index){
+		checkRoundAndComposeCoinbase(round_index);
 		if(bMining) {
 			return
 		}
 		checkTrustMEAndStartMinig(round_index);
-		bMining = true
-	})},10*1000);
-
-setInterval(function(){
-	round.getCurrentRoundIndexByDb(function(round_index){
-		checkRoundAndComposeCoinbase(round_index);
 	})
-}, 5*1000);
+},10*1000);
 
-// eventBus.on("launch_coinbase", function(round_index) {
-// 	checkTrustMEAndStartMinig(round_index)
-// 	checkRoundAndComposeCoinbase(round_index)
-// })
+eventBus.on("launch_coinbase", function(round_index) {
+	checkTrustMEAndStartMinig(round_index)
+})
 
 eventBus.on("pow_mined_gift", function(solution){
 	console.log('===Will compose POW joint===');
 	if(my_address == constants.FOUNDATION_ADDRESS) {
+		bMining = false;
 		return console.log('Foundation will not mine');
 	}
 
@@ -761,13 +770,14 @@ eventBus.on("pow_mined_gift", function(solution){
 			round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
 				if(bExist) {
 					conn.release()
+					bMining = false;
 					return console.log('POW already sent');
 				}
 				round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
 					round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
 						conn.release()
-						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 						bMining = false;
+						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 					});
 				});
 			});
