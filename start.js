@@ -661,6 +661,9 @@ function checkRoundAndComposeCoinbase(round_index) {
 	
 	console.log('Going to compose Coinbase')
 	db.takeConnectionFromPool(function(conn){
+		if(round_index===1) {
+			return
+		}
 		determineIfIAmWitness(conn, round_index-1, function(bWitness){
 			if(bWitness) {
 				conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
