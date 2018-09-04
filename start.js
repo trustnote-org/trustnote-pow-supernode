@@ -789,12 +789,8 @@ eventBus.on("pow_mined_gift", function(solution){
 					bMining = false;
 					return console.log('POW already sent');
 				}
-				round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
-					round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
-						conn.release()
-						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
-					});
-				});
+				conn.release()
+				composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 			});
 		})
 	});
