@@ -601,18 +601,9 @@ function createOptimalOutputs(handleOutputs){
 }
 
 eventBus.on('round_switch', function(round_index){
-	clearInterval(miner)
 	bMining = false;
 	pow.stopMining(round_index-1)
 	console.log('=== Round Switch === : '+round_index);
-	miner = setInterval(function(){
-		round.getCurrentRoundIndexByDb(function(round_index){
-			if(bMining) {
-				return
-			}
-			checkTrustMEAndStartMinig(round_index);
-			bMining = true
-		})},10*1000);
 })
 
 // function notifyMinerStartMining() {
@@ -651,7 +642,6 @@ function checkTrustMEAndStartMinig(round_index){
 }
 
 function checkRoundAndComposeCoinbase(round_index) {
-	let lastRound = currentRound;
 	const callbacks = composer.getSavingCallbacks({
 		ifNotEnoughFunds: onError,
 		ifError: onError,
@@ -661,20 +651,27 @@ function checkRoundAndComposeCoinbase(round_index) {
 		}
 	})
 	
-	if (currentRound !== round_index) {
-		console.log('Going to compose Coinbase')
-		currentRound = round_index;
-		db.takeConnectionFromPool(function(conn){
-			determineIfIAmWitness(conn, lastRound, function(bWitness){
-				if(bWitness) {
-					round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
+	console.log('Going to compose Coinbase')
+	db.takeConnectionFromPool(function(conn){
+		determineIfIAmWitness(conn, round_index-1, function(bWitness){
+			if(bWitness) {
+				conn.query("SELECT address from units join unit_authors where pow_type=1 and round_index=?", [round_index], function(){
+					if(rows.length < 8) {
+						if(rows.indexOf(my_address) <= 0) {
+							round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
+								conn.release();
+								composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
+							})
+						} else {
+							conn.release();
+						}
+					} else {
 						conn.release();
-						composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
-					})
-				};
-			});
-		})
-	}
+					}
+				})
+			};
+		});
+	})
 }
 
 setTimeout(function(){
@@ -724,7 +721,7 @@ setTimeout(function(){
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
-let miner = setInterval(function(){
+setInterval(function(){
 	round.getCurrentRoundIndexByDb(function(round_index){
 		if(bMining) {
 			return
@@ -770,7 +767,6 @@ eventBus.on("pow_mined_gift", function(solution){
 					round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
 						conn.release()
 						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
-						clearInterval(miner)
 						bMining = false;
 					});
 				});
