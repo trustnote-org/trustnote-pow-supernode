@@ -662,6 +662,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 	console.log('Going to compose Coinbase')
 	db.takeConnectionFromPool(function(conn){
 		if(round_index===1) {
+			conn.release();
 			return
 		}
 		determineIfIAmWitness(conn, round_index-1, function(bWitness){
