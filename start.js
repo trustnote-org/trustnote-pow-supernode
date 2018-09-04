@@ -71,7 +71,14 @@ var bMining = false; // if miner is mining
 var currentRound = 1; // to record current round index
 
 function onError(err){
-	throw Error(err);
+	// throw Error(err);
+	console.log("Error: " + err);
+}
+
+function onMiningError(err){
+	// throw Error(err);
+	bMining = false;
+	console.log("Mining Error: " + err);
 }
 
 function readKeys(onDone){
@@ -761,9 +768,10 @@ eventBus.on("pow_mined_gift", function(solution){
 	}
 
 	const callbacks = composer.getSavingCallbacks({
-		ifNotEnoughFunds: onError,
-		ifError: onError,
+		ifNotEnoughFunds: onMiningError,
+		ifError: onMiningError,
 		ifOk: function(objJoint){
+			bMining = false;
 			network.broadcastJoint(objJoint);
 			console.log('===Pow=== objJoin sent')
 		}
@@ -771,6 +779,10 @@ eventBus.on("pow_mined_gift", function(solution){
 
 	db.takeConnectionFromPool(function(conn){
 		round.getCurrentRoundIndex(conn, function(round_index){
+			if(round_index != solution.round_index){
+				conn.release();
+				return console.log("Round switched won't compose pow with wrong round index")
+			}
 			round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
 				if(bExist) {
 					conn.release()
@@ -780,7 +792,6 @@ eventBus.on("pow_mined_gift", function(solution){
 				round.getRoundInfoByRoundIndex(conn, round_index, function(index, min_wl, max_wl, seed){
 					round.getDifficultydByRoundIndex(conn, round_index, function(difficulty){
 						conn.release()
-						bMining = false;
 						composer.composePowJoint(my_address, round_index, seed, difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
 					});
 				});
