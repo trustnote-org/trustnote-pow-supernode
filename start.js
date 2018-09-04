@@ -682,6 +682,9 @@ function checkRoundAndComposeCoinbase(round_index) {
 							if(rows.length<=0){
 								round.getCoinbaseByRoundIndexAndAddress(conn, round_index-1, my_address, function(coinbase_amount){
 									conn.release();
+									if(coinbase_amount===0){
+										return console.log("No coinbase earned")
+									}
 									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
 								})
 							} else {
