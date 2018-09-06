@@ -759,7 +759,7 @@ setInterval(function(){
 	})
 },10*1000);
 
-eventBus.on("launch_coinbase", function(round_index) {
+eventBus.on("launch_pow", function(round_index) {
 	checkTrustMEAndStartMinig(round_index)
 })
 
