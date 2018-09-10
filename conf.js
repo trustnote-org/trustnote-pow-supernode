@@ -22,7 +22,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://dev.mainchain.pow.trustnote.org:9191",
+    "ws://192.168.1.147:9191",
 ];
 
 exports.storage = 'sqlite';
@@ -48,6 +48,7 @@ exports.bSingleAddress = true;
 exports.THRESHOLD_DISTANCE = 5;
 exports.MIN_AVAILABLE_WITNESSINGS = 100;
 exports.bPostTimestamp = false;
+exports.start_mining_round = 0;
 
 exports.KEYS_FILENAME = 'keys.json';
 

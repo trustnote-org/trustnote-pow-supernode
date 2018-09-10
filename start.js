@@ -760,6 +760,9 @@ setInterval(function(){
 },10*1000);
 
 eventBus.on("launch_pow", function(round_index) {
+	if(conf.start_mining_round < round_index) {
+		return console.log("Current round is to early, will not be mining")
+	}
 	checkTrustMEAndStartMinig(round_index)
 })
 
