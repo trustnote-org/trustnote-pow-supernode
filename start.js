@@ -644,6 +644,7 @@ function checkTrustMEAndStartMinig(round_index){
 						console.log("Mining Error:" + err);
 					}
 					else {
+						console.log("Mining Succeed");
 						bMining = true;
 						conn.release();
 					}
