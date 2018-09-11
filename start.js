@@ -626,6 +626,9 @@ function createOptimalOutputs(handleOutputs){
 // }
 
 function checkTrustMEAndStartMinig(round_index){
+	if(conf.start_mining_round < round_index) {
+		return console.log("Current round is to early, will not be mining")
+	}
 	bMining = true;
 	db.takeConnectionFromPool(function(conn){
 		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
@@ -752,49 +755,6 @@ setTimeout(function(){
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
 
-eventBus.on("launch_pow", function(round_index) {
-	if(conf.start_mining_round < round_index) {
-		return console.log("Current round is to early, will not be mining")
-	}
-	checkTrustMEAndStartMinig(round_index)
-})
-
-eventBus.on("pow_mined_gift", function(solution){
-	console.log('===Will compose POW joint===');
-	if(my_address == constants.FOUNDATION_ADDRESS) {
-		bMining = false;
-		return console.log('Foundation will not mine');
-	}
-
-	const callbacks = composer.getSavingCallbacks({
-		ifNotEnoughFunds: onMiningError,
-		ifError: onMiningError,
-		ifOk: function(objJoint){
-			bMining = false;
-			network.broadcastJoint(objJoint);
-			console.log('===Pow=== objJoin sent')
-		}
-	})
-
-	db.takeConnectionFromPool(function(conn){
-		round.getCurrentRoundIndex(conn, function(round_index){
-			if(round_index != solution.round){
-				conn.release();
-				return console.log("Round switched won't compose pow with wrong round index")
-			}
-			round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
-				if(bExist) {
-					conn.release()
-					bMining = false;
-					return console.log('POW already sent');
-				}
-				conn.release()
-				composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
-			});
-		})
-	});
-})
-
 eventBus.on('headless_wallet_ready', function(){
 	if (!conf.admin_email || !conf.from_email){
 		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
@@ -823,6 +783,46 @@ eventBus.on('headless_wallet_ready', function(){
 			checkTrustMEAndStartMinig(round_index);
 		})
 	},10*1000);
+
+	eventBus.on("launch_pow", function(round_index) {
+		checkTrustMEAndStartMinig(round_index)
+	})
+	
+	eventBus.on("pow_mined_gift", function(solution){
+		console.log('===Will compose POW joint===');
+		if(my_address == constants.FOUNDATION_ADDRESS) {
+			bMining = false;
+			return console.log('Foundation will not mine');
+		}
+	
+		const callbacks = composer.getSavingCallbacks({
+			ifNotEnoughFunds: onMiningError,
+			ifError: onMiningError,
+			ifOk: function(objJoint){
+				bMining = false;
+				network.broadcastJoint(objJoint);
+				console.log('===Pow=== objJoin sent')
+			}
+		})
+	
+		db.takeConnectionFromPool(function(conn){
+			round.getCurrentRoundIndex(conn, function(round_index){
+				if(round_index != solution.round){
+					conn.release();
+					return console.log("Round switched won't compose pow with wrong round index")
+				}
+				round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
+					if(bExist) {
+						conn.release()
+						bMining = false;
+						return console.log('POW already sent');
+					}
+					conn.release()
+					composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
+				});
+			})
+		});
+	})	
 });
 
 eventBus.on('peer_version', function (ws, body) {
