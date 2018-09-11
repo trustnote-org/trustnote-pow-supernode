@@ -25,10 +25,10 @@ _event_bus.on
 _pow.startMiningWithInputs
 (
 	{
-		currentRoundIndex	: 111,
-		currentFirstTrustMEBall	: 'rjywtuZ8A70vgIsZ7L4lBR3gz62Nl3vZr2t7I4lzsMU=',
-		currentDifficulty	: nDifficulty,
-		currentPubSeed		: 'public key',
+		roundIndex		: 111,
+		firstTrustMEBall	: 'rjywtuZ8A70vgIsZ7L4lBR3gz62Nl3vZr2t7I4lzsMU=',
+		difficulty		: nDifficulty,
+		publicSeed		: 'public key',
 		superNodeAuthor		: 'xing.supernode.trustnote.org',
 	},
 	function( err )
