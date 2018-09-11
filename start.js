@@ -607,12 +607,6 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-eventBus.on('round_switch', function(round_index){
-	bMining = false;
-	pow.stopMining(round_index-1)
-	console.log('=== Round Switch === : '+round_index);
-})
-
 // function notifyMinerStartMining() {
 // 	db.takeConnectionFromPool(function(conn){
 // 		round.getCurrentRoundIndex(conn, function(round_index){
@@ -757,15 +751,6 @@ setTimeout(function(){
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
-setInterval(function(){
-	round.getCurrentRoundIndexByDb(function(round_index){
-		checkRoundAndComposeCoinbase(round_index);
-		if(bMining) {
-			return
-		}
-		checkTrustMEAndStartMinig(round_index);
-	})
-},10*1000);
 
 eventBus.on("launch_pow", function(round_index) {
 	if(conf.start_mining_round < round_index) {
@@ -821,6 +806,23 @@ eventBus.on('headless_wallet_ready', function(){
 		//checkAndWitness();
 		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
 	});
+	
+	eventBus.on('round_switch', function(round_index){
+		bMining = false;
+		pow.stopMining(round_index-1)
+		console.log('=== Round Switch === : '+round_index);
+	})
+	
+
+	setInterval(function(){
+		round.getCurrentRoundIndexByDb(function(round_index){
+			checkRoundAndComposeCoinbase(round_index);
+			if(bMining) {
+				return
+			}
+			checkTrustMEAndStartMinig(round_index);
+		})
+	},10*1000);
 });
 
 eventBus.on('peer_version', function (ws, body) {
