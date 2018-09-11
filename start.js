@@ -632,31 +632,32 @@ eventBus.on('round_switch', function(round_index){
 // }
 
 function checkTrustMEAndStartMinig(round_index){
+	bMining = true;
 	db.takeConnectionFromPool(function(conn){
 		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
 		[round_index, constants.POW_TYPE_TRUSTME], function(rows){
 			if(rows.length>=1){
-				bMining = true;
 				pow.obtainMiningInput(conn, round_index, function(err, input_object) {
+					conn.release();
 					if (err) {
 						// notifyAdminAboutWitnessingProblem(err)
-						conn.release()
 						console.log("Mining Error:" + err);
+						bMining = false;
 					}
 					else {
-						conn.release();
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
 								console.log("Mining Error:" + err);
 							} else {
 								console.log("Mining Succeed");
 							}
+							bMining = false;
 						})
 					}
-					bMining = false;
 				})
 			}
 			else {
+				bMining = false;
 				conn.release();
 			}
 		})
