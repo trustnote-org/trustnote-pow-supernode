@@ -68,6 +68,7 @@ function replaceConsoleLog(){
 
 // pow add
 var bMining = false; // if miner is mining
+var bPowSent = false; // if pow joint is sent
 var currentRound = 1; // to record current round index
 
 function onError(err){
@@ -769,6 +770,7 @@ eventBus.on('headless_wallet_ready', function(){
 	
 	eventBus.on('round_switch', function(round_index){
 		bMining = false;
+		bPowSent = false;
 		pow.stopMining(round_index-1)
 		console.log('=== Round Switch === : '+round_index);
 	})
@@ -778,7 +780,7 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log(`Minier Status :${bMining}, ready to checkTrustMEAndStartMinig`)
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
-			if(bMining) {
+			if(bMining || bPowSent) {
 				return
 			}
 			checkTrustMEAndStartMinig(round_index);
@@ -801,6 +803,7 @@ eventBus.on('headless_wallet_ready', function(){
 			ifError: onMiningError,
 			ifOk: function(objJoint){
 				bMining = false;
+				bPowSent = true;
 				network.broadcastJoint(objJoint);
 				console.log('===Pow=== objJoin sent')
 			}
