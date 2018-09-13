@@ -1122,6 +1122,48 @@ function initRPC() {
 		})
 	})
 
+	server.expose('getCycleInfo', function(args, opt, cb){
+		db.query("SELECT * FROM round_cycle", function(rows){
+			cb(JSON.stringify(rows));
+		})
+	})
+
+	server.expose('getRoundInfo', function(args, opt, cb){
+		db.query("SELECT * FROM round", function(rows){
+			cb(JSON.stringify(rows));
+		})
+	})
+
+	server.expose('unitInfo', function(args, opt, cb){
+		db.query('select * from units where unit=?', unit, function(rows){
+			if(rows.length===0){
+				return cb('Unit not Found')
+			} else {
+				return cb(JSON.stringify(rows[0]))
+			}
+		})
+	})
+
+	server.expose('badJoints', function(args, opt, cb){
+		db.query('select * from known_bad_joints', function(rows) {
+			if(rows.length===0){
+				return cb('Not bad Joints')
+			} else {
+				return cb(JSON.stringify(rows))
+			}
+		})
+	})
+
+	server.expose('unhandleJoints', function(args, opt, cb){
+		db.query('select * from unhandle_joints', function(rows) {
+			if(rows.length===0){
+				return cb('Not unhandle Joints')
+			} else {
+				return cb(JSON.stringify(rows))
+			}
+		})
+	})
+
 	readSingleWallet(function(_wallet_id) {
 		wallet_id = _wallet_id;
 		// listen creates an HTTP server on localhost only
