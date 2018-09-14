@@ -1135,6 +1135,7 @@ function initRPC() {
 	})
 
 	server.expose('unitInfo', function(args, opt, cb){
+		var unit = args[0]
 		db.query('select * from units where unit=?', unit, function(rows){
 			if(rows.length===0){
 				return cb('Unit not Found')
