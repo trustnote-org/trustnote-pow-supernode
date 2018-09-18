@@ -102,7 +102,7 @@ function readKeys(onDone){
 				if (!deviceName)
 					deviceName = suggestedDeviceName;
 				var userConfFile = appDataDir + '/conf.json';
-				fs.writeFile(userConfFile, JSON.stringify({deviceName: deviceName}, null, '\t'), 'utf8', function(err){
+				fs.writeFile(userConfFile, JSON.stringify({deviceName: deviceName, admin_email: "admin@example.com", from_email: "noreply@example.com"}, null, '\t'), 'utf8', function(err){
 					if (err)
 						throw Error('failed to write conf.json: '+err);
 					rl.question(

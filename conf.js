@@ -45,7 +45,7 @@ exports.initialWitnesses = [
 ];
 
 exports.bSingleAddress = true;
-exports.THRESHOLD_DISTANCE = 5;
+exports.THRESHOLD_DISTANCE = 4;
 exports.MIN_AVAILABLE_WITNESSINGS = 100;
 exports.bPostTimestamp = false;
 exports.start_mining_round = 0;
