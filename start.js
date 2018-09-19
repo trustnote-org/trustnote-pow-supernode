@@ -427,10 +427,10 @@ function checkAndWitness(){
 								let last_ts = (rows.length > 0) ? rows[0].last_ts : 0;
 								let interval = Date.now() - last_ts*1000;
 								console.log("distance="+distance+", interval="+(interval/1000)+"s");
-								if (interval < MIN_INTERVAL){
-									bWitnessingUnderWay = false;
-									return console.log("witnessed recently, skipping");
-								}
+								// if (interval < MIN_INTERVAL){
+								// 	bWitnessingUnderWay = false;
+								// 	return console.log("witnessed recently, skipping");
+								// }
 								if (distance > conf.THRESHOLD_DISTANCE){
 									console.log('distance above threshold, will witness');
 									setTimeout(function(){
