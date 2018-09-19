@@ -33,20 +33,8 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
-<<<<<<< HEAD
 var interval;
-=======
-var MIN_INTERVAL = conf.MIN_INTERVAL || 60 * 1000;
->>>>>>> Update: update witness logic, remove a function, try to fix a small but weird bug
 
-<<<<<<< HEAD
-=======
-if (conf.permanent_pairing_secret)
-	db.query(
-		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
-		[conf.permanent_pairing_secret]
-	);
->>>>>>> Update: remove some unused codes
 
 function replaceConsoleLog(){
 	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
