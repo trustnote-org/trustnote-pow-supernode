@@ -33,6 +33,7 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
+var MIN_INTERVAL = conf.MIN_INTERVAL || 60 * 1000;
 
 
 function replaceConsoleLog(){
@@ -401,24 +402,27 @@ function checkAndWitness(){
 					storage.readLastMainChainIndex(function(max_mci){
 						let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
 						db.query(
-							"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+							"SELECT main_chain_index AS max_my_mci, "+db.getUnixTimestamp('creation_date')+" AS last_ts \n\
+							FROM units JOIN unit_authors USING(unit) WHERE +address=? ORDER BY "+col+" DESC LIMIT 1", 
 							[my_address],
 							function(rows){
 								var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
 								var distance = max_mci - max_my_mci;
-								console.log("distance="+distance);
-								// setTimeout(function()
-								// 	witness(round_index, function(){
-								// 		console.log('witnessing is over');
-								// 		bWitnessingUnderWay = false;
-								// 	});
-								// }, Math.round(Math.random()*3000));
+								let last_ts = (rows.length > 0) ? rows[0].last_ts : 0;
+								let interval = Date.now() - last_ts*1000;
+								console.log("distance="+distance+", interval="+(interval/1000)+"s");
+								if (interval < MIN_INTERVAL){
+									bWitnessingUnderWay = false;
+									return console.log("witnessed recently, skipping");
+								}
 								if (distance > conf.THRESHOLD_DISTANCE){
 									console.log('distance above threshold, will witness');
-									bWitnessingUnderWay = false;
-									checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-								}
-								else{
+									setTimeout(function(){
+										witness(function(){
+											bWitnessingUnderWay = false;
+										});
+									}, Math.round(Math.random()*3000));
+								} else {
 									bWitnessingUnderWay = false;
 									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
 								}
@@ -482,29 +486,28 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 }
 
 //add winess payment victor
-function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
-	var storage = require('trustnote-pow-common/storage.js');
-	db.query( // look for unstable non-witness-authored units 
-		// pow modi
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
-		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND NOT ( \n\
-				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-			) \n\
-		LIMIT 1",
-		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-		function(rows){
-			if (rows.length === 0)
-				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*1000);
-			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-		}
-	);
-}
+// function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
+// 	db.query( // look for unstable non-witness-authored units 
+// 		// pow modi
+// 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
+// 		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
+// 			AND NOT ( \n\
+// 				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
+// 				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
+// 				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
+// 				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
+// 			) \n\
+// 		LIMIT 1",
+// 		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
+// 		function(rows){
+// 			if (rows.length === 0)
+// 				return;
+// 			var timeout = Math.round((distance_to_threshold + Math.random())*1000);
+// 			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
+// 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
+// 		}
+// 	);
+// }
 
 function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
