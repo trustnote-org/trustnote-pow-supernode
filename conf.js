@@ -22,11 +22,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-<<<<<<< HEAD
-    "ws://192.168.1.147:9191",
-=======
     "ws://test.mainchain.pow.trustnote.org:9191",
->>>>>>> d86fe0e6b3a5d83f4cc4d1830cbc0b6a4072dcd3
 ];
 
 exports.storage = 'sqlite';
