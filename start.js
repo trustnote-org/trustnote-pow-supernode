@@ -33,7 +33,11 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
+<<<<<<< HEAD
 var interval;
+=======
+var MIN_INTERVAL = conf.MIN_INTERVAL || 60 * 1000;
+>>>>>>> Update: update witness logic, remove a function, try to fix a small but weird bug
 
 <<<<<<< HEAD
 =======
@@ -587,11 +591,6 @@ function checkTrustMEAndStartMinig(round_index){
 								infoStartMining(input_object);
 								console.log("Mining Succeed");
 							}
-<<<<<<< HEAD
-=======
-							bMining = false;
-							
->>>>>>> Update: remove some unused codes
 						})
 					}
 				})
