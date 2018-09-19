@@ -37,7 +37,6 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
-var MIN_INTERVAL = conf.MIN_INTERVAL || 60 * 1000;
 
 if (conf.permanent_pairing_secret)
 	db.query(
