@@ -35,6 +35,7 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
+var interval;
 
 function datetime() {
 	let date = new Date();
@@ -631,6 +632,7 @@ function checkTrustMEAndStartMinig(round_index){
 						bMining = false;
 					}
 					else {
+						interval = Date.now()
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
 								console.log("Mining Error:" + err);
@@ -793,6 +795,8 @@ eventBus.on('headless_wallet_ready', function(){
 	})
 	
 	eventBus.on("pow_mined_gift", function(solution){
+		var gap = Date.now() - interval;
+		console.log(`===POW cost: ${gap} ms===`)
 		console.log('===Will compose POW joint===');
 		if(my_address == constants.FOUNDATION_ADDRESS) {
 			bMining = false;
