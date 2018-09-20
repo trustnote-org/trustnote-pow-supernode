@@ -431,7 +431,6 @@ function checkAndWitness(){
 							function(rows){
 								var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
 								var distance = max_mci - max_my_mci;
-								console.log("distance="+distance+", interval="+(interval/1000)+"s");
 								if (distance > conf.THRESHOLD_DISTANCE){
 									console.log('distance above threshold, will witness');
 									setTimeout(function(){
