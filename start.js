@@ -37,15 +37,13 @@ var wallet_id;
 var xPrivKey;
 var interval;
 
-function datetime() {
-	let date = new Date();
-	return ''+ date.getFullYear() + (date.getMonth() < 10 ? '0' :'') + date.getMonth() +
-	(date.getDate() < 10 ? '0' :'') + date.getDate() + (date.getHours() < 10 ? '0' :'') + date.getHours() +
-	(date.getMinutes() < 10 ? '0' :'') + date.getMinutes() + ( date.getSeconds() < 10 ? '0' :'') + date.getSeconds()
-}
+if (conf.permanent_pairing_secret)
+	db.query(
+		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
+		[conf.permanent_pairing_secret]
+	);
 
 function replaceConsoleLog(){
-	// var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
 	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
 	var writeStream = fs.createWriteStream(log_filename);
 	console.log('---------------');
@@ -295,7 +293,6 @@ function handleText(from_address, text){
 	}
 }
 
-
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
@@ -333,7 +330,6 @@ function notifyAdminAboutWitnessingProblem(err){
 	console.log('witnessing problem: '+err);
 	notifyAdmin('witnessing problem: '+err, err);
 }
-
 
 function witness(onDone){
 	function onError(err){
@@ -493,30 +489,6 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 	);
 }
 
-//add winess payment victor
-// function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
-// 	db.query( // look for unstable non-witness-authored units 
-// 		// pow modi
-// 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
-// 		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-// 			AND NOT ( \n\
-// 				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-// 				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-// 				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-// 				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-// 			) \n\
-// 		LIMIT 1",
-// 		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-// 		function(rows){
-// 			if (rows.length === 0)
-// 				return;
-// 			var timeout = Math.round((distance_to_threshold + Math.random())*1000);
-// 			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-// 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-// 		}
-// 	);
-// }
-
 function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
 		return;
@@ -597,24 +569,6 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-// function notifyMinerStartMining() {
-// 	db.takeConnectionFromPool(function(conn){
-// 		round.getCurrentRoundIndex(conn, function(round_index){
-// 			console.log('===Will start mining===')
-// 			pow.startMining(conn, round_index,function(err) {
-// 				if (err) {
-// 					// notifyAdminAboutWitnessingProblem(err)
-// 					conn.release()
-// 					setTimeout(notifyMinerStartMining, 10*1000);
-// 				}
-// 				else {
-// 					conn.release();
-// 				}
-// 			})
-// 		})
-// 	});
-// }
-
 function checkTrustMEAndStartMinig(round_index){
 	if(conf.start_mining_round > round_index) {
 		return console.log("Current round is to early, will not be mining")
@@ -640,6 +594,7 @@ function checkTrustMEAndStartMinig(round_index){
 								console.log("Mining Succeed");
 							}
 							bMining = false;
+							
 						})
 					}
 				})
@@ -892,6 +847,9 @@ function getMyStatus(){
 	})
 }
 
+/**
+ * RPC APIs
+ */
 function initRPC() {
 	var rpc = require('json-rpc2');
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
