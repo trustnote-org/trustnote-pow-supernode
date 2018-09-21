@@ -1,6 +1,7 @@
 /*jslint node: true */
 "use strict";
 var conf = require('trustnote-pow-common/conf.js');
+var eventBus = require('trustnote-pow-common/event_bus.js');
 
 function replaceConsoleLog(){
 	var clog = console.log;
@@ -19,5 +20,7 @@ function start(){
 		});
 }
 
-replaceConsoleLog();
-start()
+eventBus.on('headless_wallet_ready', function(){
+	replaceConsoleLog();
+	start()
+})

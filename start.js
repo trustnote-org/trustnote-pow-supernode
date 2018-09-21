@@ -1,27 +1,25 @@
 /*jslint node: true */
 "use strict";
-require('./relay.js');
 var fs = require('fs');
 var crypto = require('crypto');
 var util = require('util');
-var desktopApp = require('trustnote-pow-common/desktop_app.js');
-var push = require('./push.js');
 var constants = require('trustnote-pow-common/constants.js');
-var composer = require('trustnote-pow-common/composer.js');
 var conf = require('trustnote-pow-common/conf.js');
 var objectHash = require('trustnote-pow-common/object_hash.js');
+var desktopApp = require('trustnote-pow-common/desktop_app.js');
 var db = require('trustnote-pow-common/db.js');
 var eventBus = require('trustnote-pow-common/event_bus.js');
 var ecdsaSig = require('trustnote-pow-common/signature.js');
 var Mnemonic = require('bitcore-mnemonic');
 var Bitcore = require('bitcore-lib');
 var readline = require('readline');
-var storage = require('trustnote-pow-common/storage.js');
+
+require('./relay.js');
+var push = require('./push.js');
+var storage;
 var mail = require('trustnote-pow-common/mail.js');
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
-var network = require('trustnote-pow-common/network.js');
-var mutex = require('trustnote-pow-common/mutex.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
 
 if (!conf.bSingleAddress)
@@ -37,12 +35,6 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
-
-if (conf.permanent_pairing_secret)
-	db.query(
-		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
-		[conf.permanent_pairing_secret]
-	);
 
 function datetime() {
 	let date = new Date();
@@ -131,7 +123,7 @@ function readKeys(onDone){
 			});
 		}
 		else{ // 2nd or later start
-			// rl.question("Passphrase: ", function(passphrase){
+			rl.question("Passphrase: ", function(passphrase){
 				var passphrase = "";
 				rl.close();
 				if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
@@ -150,7 +142,7 @@ function readKeys(onDone){
 						});
 					}
 				});
-			// });
+			});
 		}
 	});
 }
@@ -663,6 +655,9 @@ function checkTrustMEAndStartMinig(round_index){
 }
 
 function checkRoundAndComposeCoinbase(round_index) {
+	var network = require('trustnote-pow-common/network.js');
+	var composer = require('trustnote-pow-common/composer.js');
+
 	const callbacks = composer.getSavingCallbacks({
 		ifNotEnoughFunds: onError,
 		ifError: onError,
@@ -757,6 +752,16 @@ setTimeout(function(){
 
 
 eventBus.on('headless_wallet_ready', function(){
+	var network = require('trustnote-pow-common/network.js');
+	var composer = require('trustnote-pow-common/composer.js');
+	var storage = require('trustnote-pow-common/storage.js');
+	
+	if (conf.permanent_pairing_secret)
+		db.query(
+			"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
+			[conf.permanent_pairing_secret]
+		);
+		
 	if (!conf.admin_email || !conf.from_email){
 		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
 		process.exit(1);
@@ -826,18 +831,7 @@ eventBus.on('headless_wallet_ready', function(){
 				});
 			})
 		});
-	})	
-});
-
-eventBus.on('peer_version', function (ws, body) {
-	if (body.program == conf.clientName) {
-		if (conf.minClientVersion && compareVersions(body.program_version, '1.0.7') == '==')
-			return;
-		if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
-			network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
-		// if (compareVersions(body.program_version, '1.5.1') == '<')
-		// 	ws.close(1000, "mandatory upgrade");
-	}
+	})
 });
 
 function compareVersions(currentVersion, minVersion) {
@@ -903,6 +897,7 @@ function initRPC() {
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
 	var Wallet = require('trustnote-pow-common/wallet.js');
 	var balances = require('trustnote-pow-common/balances.js');
+	var mutex = require('trustnote-pow-common/mutex.js');
 
 	var server = rpc.Server.$create({
 		'websocket': true, // is true by default
