@@ -95,51 +95,52 @@ function readKeys(onDone){
 				fs.writeFile(userConfFile, JSON.stringify({deviceName: deviceName, admin_email: "admin@example.com", from_email: "noreply@example.com"}, null, '\t'), 'utf8', function(err){
 					if (err)
 						throw Error('failed to write conf.json: '+err);
-					rl.question(
-						'Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ',
-						function(passphrase){
-							rl.close();
-							if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
-							if (process.stdout.clearLine)  process.stdout.clearLine();
-							var deviceTempPrivKey = crypto.randomBytes(32);
-							var devicePrevTempPrivKey = crypto.randomBytes(32);
+					// rl.question(
+					console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
+						// function(passphrase){
+							// rl.close();
+					var passphrase = ""
+					if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
+					if (process.stdout.clearLine)  process.stdout.clearLine();
+					var deviceTempPrivKey = crypto.randomBytes(32);
+					var devicePrevTempPrivKey = crypto.randomBytes(32);
 
-							var mnemonic = new Mnemonic(); // generates new mnemonic
-							while (!Mnemonic.isValid(mnemonic.toString()))
-								mnemonic = new Mnemonic();
+					var mnemonic = new Mnemonic(); // generates new mnemonic
+					while (!Mnemonic.isValid(mnemonic.toString()))
+						mnemonic = new Mnemonic();
 
-							writeKeys(mnemonic.phrase, deviceTempPrivKey, devicePrevTempPrivKey, function(){
-								console.log('keys created');
-								var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
-								createWallet(xPrivKey, function(){
-									onDone(mnemonic.phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
-								});
-							});
-						}
-					);
+					writeKeys(mnemonic.phrase, deviceTempPrivKey, devicePrevTempPrivKey, function(){
+						console.log('keys created');
+						var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
+						createWallet(xPrivKey, function(){
+							onDone(mnemonic.phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
+						});
+					});
+						// }
+					// );
 				});
 			});
 		}
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
-				var passphrase = "";
-				rl.close();
-				if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
-				if (process.stdout.clearLine)  process.stdout.clearLine();
-				var keys = JSON.parse(data);
-				var deviceTempPrivKey = Buffer(keys.temp_priv_key, 'base64');
-				var devicePrevTempPrivKey = Buffer(keys.prev_temp_priv_key, 'base64');
-				determineIfWalletExists(function(bWalletExists){
-					if (bWalletExists)
+			var passphrase = "";
+			rl.close();
+			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
+			if (process.stdout.clearLine)  process.stdout.clearLine();
+			var keys = JSON.parse(data);
+			var deviceTempPrivKey = Buffer(keys.temp_priv_key, 'base64');
+			var devicePrevTempPrivKey = Buffer(keys.prev_temp_priv_key, 'base64');
+			determineIfWalletExists(function(bWalletExists){
+				if (bWalletExists)
+					onDone(keys.mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
+				else{
+					var mnemonic = new Mnemonic(keys.mnemonic_phrase);
+					var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
+					createWallet(xPrivKey, function(){
 						onDone(keys.mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
-					else{
-						var mnemonic = new Mnemonic(keys.mnemonic_phrase);
-						var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
-						createWallet(xPrivKey, function(){
-							onDone(keys.mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
-						});
-					}
-				});
+					});
+				}
+			});
 			// });
 		}
 	});
