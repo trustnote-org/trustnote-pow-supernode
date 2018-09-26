@@ -47,7 +47,7 @@ function replaceConsoleLog(){
 		writeStream.write(util.format.apply(null, arguments) + '\n');
 	};
 	console.warn = console.log;
-	console.info = console.log;
+	// console.info = console.log;
 }
 
 // pow add
