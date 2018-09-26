@@ -797,8 +797,16 @@ eventBus.on('headless_wallet_ready', function(){
 						bMining = false;
 						return console.log('POW already sent');
 					}
-					conn.release()
-					composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
+					conn.query("SELECT count(*) from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
+						conn.release()
+						if(rows.length < 1) {
+							return console.log('Can\'t find any equhash unit')
+						}
+						if(rows[0]>=8) {
+							return console.log('There is already more than 8 pow joints, will not compose another one')
+						}
+						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
+					})
 				});
 			})
 		});
