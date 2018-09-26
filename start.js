@@ -15,7 +15,12 @@ var Bitcore = require('bitcore-lib');
 var readline = require('readline');
 
 require('./relay.js');
+<<<<<<< HEAD
 require('./push.js');
+=======
+var push = require('./push.js');
+var mail = require('trustnote-pow-common/mail.js');
+>>>>>>> Fix: dependence error
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
