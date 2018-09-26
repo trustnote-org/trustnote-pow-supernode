@@ -15,8 +15,7 @@ var Bitcore = require('bitcore-lib');
 var readline = require('readline');
 
 require('./relay.js');
-var push = require('./push.js');
-var mail = require('trustnote-pow-common/mail.js');
+require('./push.js');
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
@@ -35,12 +34,6 @@ var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
 
-function datetime() {
-	let date = new Date();
-	return ''+ date.getFullYear() + (date.getMonth() < 10 ? '0' :'') + date.getMonth() +
-	(date.getDate() < 10 ? '0' :'') + date.getDate() + (date.getHours() < 10 ? '0' :'') + date.getHours() +
-	(date.getMinutes() < 10 ? '0' :'') + date.getMinutes() + ( date.getSeconds() < 10 ? '0' :'') + date.getSeconds()
-}
 
 function replaceConsoleLog(){
 	// var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
@@ -60,7 +53,6 @@ function replaceConsoleLog(){
 // pow add
 var bMining = false; // if miner is mining
 var bPowSent = false; // if pow joint is sent
-var currentRound = 1; // to record current round index
 
 function onError(err){
 	// throw Error(err);
@@ -167,7 +159,7 @@ function createWallet(xPrivKey, onDone){
 	var strXPubKey = Bitcore.HDPublicKey(xPrivKey.derive("m/44'/0'/0'")).toString();
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
 	walletDefinedByKeys.createWalletByDevices(strXPubKey, 0, 1, [], 'any walletName', function(wallet_id){
-		walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(addressInfo){
+		walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(){
 			onDone();
 		});
 	});
@@ -221,7 +213,7 @@ function determineIfWalletExists(handleResult){
 	});
 }
 
-function signWithLocalPrivateKey(wallet_id, account, is_change, address_index, text_to_sign, handleSig){
+function signWithLocalPrivateKey(account, is_change, address_index, text_to_sign, handleSig){
 	var path = "m/44'/0'/" + account + "'/"+is_change+"/"+address_index;
 	var privateKey = xPrivKey.derive(path).privateKey;
 	var privKeyBuf = privateKey.bn.toBuffer({size:32}); // https://github.com/bitpay/bitcore-lib/issues/47
@@ -250,7 +242,7 @@ var signer = {
 				if (rows.length !== 1)
 					throw Error(rows.length+" indexes for address "+address+" and signing path "+signing_path);
 				var row = rows[0];
-				signWithLocalPrivateKey(row.wallet, row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
+				signWithLocalPrivateKey(row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
 					handleSignature(null, sig);
 				});
 			}
@@ -313,28 +305,8 @@ function setupChatEventHandlers(){
 	});
 }
 
-function notifyAdmin(subject, body){
-	mail.sendmail({
-		to: conf.admin_email,
-		from: conf.from_email,
-		subject: subject,
-		body: body
-	});
-}
-
-function notifyAdminAboutFailedWitnessing(err){
-	console.log('witnessing failed: '+err);
-	notifyAdmin('witnessing failed: '+err, err);
-}
-
-function notifyAdminAboutWitnessingProblem(err){
-	console.log('witnessing problem: '+err);
-	notifyAdmin('witnessing problem: '+err, err);
-}
-
-
 function witness(onDone){
-	function onError(err){
+	function onError(){
 		// notifyAdminAboutFailedWitnessing(err);
 		setTimeout(onDone, 60000); // pause after error
 	}
@@ -706,10 +678,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 }
 
 setTimeout(function(){
-	readKeys(function(mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey){
-		var saveTempKeys = function(new_temp_key, new_prev_temp_key, onDone){
-			writeKeys(mnemonic_phrase, new_temp_key, new_prev_temp_key, onDone);
-		};
+	readKeys(function(mnemonic_phrase, passphrase){
 		var mnemonic = new Mnemonic(mnemonic_phrase);
 		// global
 		xPrivKey = mnemonic.toHDPrivateKey(passphrase);
@@ -756,7 +725,6 @@ setTimeout(function(){
 eventBus.on('headless_wallet_ready', function(){
 	var network = require('trustnote-pow-common/network.js');
 	var composer = require('trustnote-pow-common/composer.js');
-	var storage = require('trustnote-pow-common/storage.js');
 	
 	if (conf.permanent_pairing_secret)
 		db.query(
@@ -836,32 +804,6 @@ eventBus.on('headless_wallet_ready', function(){
 	})
 });
 
-function compareVersions(currentVersion, minVersion) {
-	if (currentVersion === minVersion) return '==';
-
-	var cV = currentVersion.match(/([0-9])+/g);
-	var mV = minVersion.match(/([0-9])+/g);
-	var l = Math.min(cV.length, mV.length);
-	var diff;
-
-	for (var i = 0; i < l; i++) {
-		diff = parseInt(cV[i], 10) - parseInt(mV[i], 10);
-		if (diff > 0) {
-			return '>';
-		} else if (diff < 0) {
-			return '<'
-		}
-	}
-
-	diff = cV.length - mV.length;
-	if (diff == 0) {
-		return '==';
-	} else if (diff > 0) {
-		return '>';
-	} else if (diff < 0) {
-		return '<';
-	}
-}
 
 function issueChangeAddressAndSendPayment(asset, amount, to_address, device_address, onDone){
 	if (conf.bSingleAddress){
