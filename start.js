@@ -16,7 +16,6 @@ var readline = require('readline');
 
 require('./relay.js');
 var push = require('./push.js');
-var storage;
 var mail = require('trustnote-pow-common/mail.js');
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
@@ -392,6 +391,7 @@ function witness(onDone){
 
 
 function checkAndWitness(){
+	var storage = require('trustnote-pow-common/storage.js');
 	console.log('checkAndWitness');
 	clearTimeout(forcedWitnessingTimer);
 	if (bWitnessingUnderWay)
@@ -474,6 +474,7 @@ function determineIfThereAreMyUnitsWithoutMci(handleResult){
 }
 
 function checkForUnconfirmedUnits(distance_to_threshold){
+	var storage = require('trustnote-pow-common/storage.js');
 	db.query( // look for unstable non-witness-authored units
 		// pow modi
 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
@@ -498,6 +499,7 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 
 //add winess payment victor
 function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
+	var storage = require('trustnote-pow-common/storage.js');
 	db.query( // look for unstable non-witness-authored units 
 		// pow modi
 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
@@ -898,6 +900,7 @@ function initRPC() {
 	var Wallet = require('trustnote-pow-common/wallet.js');
 	var balances = require('trustnote-pow-common/balances.js');
 	var mutex = require('trustnote-pow-common/mutex.js');
+	var storage = require('trustnote-pow-common/storage.js');
 
 	var server = rpc.Server.$create({
 		'websocket': true, // is true by default
