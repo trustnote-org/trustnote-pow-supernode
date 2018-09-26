@@ -15,12 +15,7 @@ var Bitcore = require('bitcore-lib');
 var readline = require('readline');
 
 require('./relay.js');
-<<<<<<< HEAD
 require('./push.js');
-=======
-var push = require('./push.js');
-var mail = require('trustnote-pow-common/mail.js');
->>>>>>> Fix: dependence error
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
@@ -133,7 +128,11 @@ function readKeys(onDone){
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
 			var passphrase = "";
+<<<<<<< HEAD
 			// rl.close();
+=======
+			rl.close();
+>>>>>>> Update: remove passphrase
 			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
 			if (process.stdout.clearLine)  process.stdout.clearLine();
 			var keys = JSON.parse(data);
