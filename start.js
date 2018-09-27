@@ -15,12 +15,7 @@ var Bitcore = require('bitcore-lib');
 var readline = require('readline');
 
 require('./relay.js');
-<<<<<<< HEAD
 require('./push.js');
-=======
-var push = require('./push.js');
-var mail = require('trustnote-pow-common/mail.js');
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
@@ -40,14 +35,6 @@ var wallet_id;
 var xPrivKey;
 var interval;
 
-<<<<<<< HEAD
-=======
-if (conf.permanent_pairing_secret)
-	db.query(
-		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
-		[conf.permanent_pairing_secret]
-	);
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 
 function replaceConsoleLog(){
 	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
@@ -113,11 +100,7 @@ function readKeys(onDone){
 					if (err)
 						throw Error('failed to write conf.json: '+err);
 					// rl.question(
-<<<<<<< HEAD
 						console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
-=======
-					console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 						// function(passphrase){
 							// rl.close();
 					var passphrase = ""
@@ -145,11 +128,7 @@ function readKeys(onDone){
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
 			var passphrase = "";
-<<<<<<< HEAD
 			// rl.close();
-=======
-			rl.close();
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
 			if (process.stdout.clearLine)  process.stdout.clearLine();
 			var keys = JSON.parse(data);
@@ -337,28 +316,6 @@ function setupChatEventHandlers(){
 	});
 }
 
-<<<<<<< HEAD
-=======
-function notifyAdmin(subject, body){
-	mail.sendmail({
-		to: conf.admin_email,
-		from: conf.from_email,
-		subject: subject,
-		body: body
-	});
-}
-
-function notifyAdminAboutFailedWitnessing(err){
-	console.log('witnessing failed: '+err);
-	notifyAdmin('witnessing failed: '+err, err);
-}
-
-function notifyAdminAboutWitnessingProblem(err){
-	console.log('witnessing problem: '+err);
-	notifyAdmin('witnessing problem: '+err, err);
-}
-
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 function witness(onDone){
 	function onError(){
 		// notifyAdminAboutFailedWitnessing(err);
@@ -418,10 +375,6 @@ function witness(onDone){
 
 function checkAndWitness(){
 	var storage = require('trustnote-pow-common/storage.js');
-<<<<<<< HEAD
-=======
-
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 	console.log('checkAndWitness');
 	clearTimeout(forcedWitnessingTimer);
 	if (bWitnessingUnderWay)
@@ -495,10 +448,6 @@ function determineIfThereAreMyUnitsWithoutMci(handleResult){
 
 function checkForUnconfirmedUnits(distance_to_threshold){
 	var storage = require('trustnote-pow-common/storage.js');
-<<<<<<< HEAD
-=======
-
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 	db.query( // look for unstable non-witness-authored units
 		// pow modi
 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
@@ -680,7 +629,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 			if(objJoint.unit.messages[0].payload.inputs[0].amount)
 				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.inputs[0].amount);
 			else
-				infoCoinbaseReward(0);
+				infoCoinbaseReward(objJoint.unit.round_index, 0);
 			console.log('=== Coinbase sent ===')
 		}
 	})
