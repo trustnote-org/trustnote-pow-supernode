@@ -128,11 +128,7 @@ function readKeys(onDone){
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
 			var passphrase = "";
-<<<<<<< HEAD
 			// rl.close();
-=======
-			rl.close();
->>>>>>> Update: remove passphrase
 			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
 			if (process.stdout.clearLine)  process.stdout.clearLine();
 			var keys = JSON.parse(data);
