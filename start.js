@@ -550,7 +550,7 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-function checkTrustMEAndStartMinig(round_index){
+function checkTrustMEAndStartMining(round_index){
 	if(bMining || bPowSent) {
 		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
 	}
@@ -750,12 +750,12 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
-			checkTrustMEAndStartMinig(round_index);
+			checkTrustMEAndStartMining(round_index);
 		})
 	},10*1000);
 
 	eventBus.on("launch_pow", function(round_index) {
-		checkTrustMEAndStartMinig(round_index)
+		checkTrustMEAndStartMining(round_index)
 	})
 	
 	eventBus.on("pow_mined_gift", function(solution){
