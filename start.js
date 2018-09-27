@@ -759,6 +759,10 @@ eventBus.on('headless_wallet_ready', function(){
 	})
 	
 	eventBus.on("pow_mined_gift", function(solution){
+		if(my_address == constants.FOUNDATION_ADDRESS) {
+			bMining = false;
+			return console.log('Foundation will not mine');
+		}
 		var gap = Date.now() - interval;
 		console.log(`===POW cost: ${gap} ms===`)
 		console.log('===Will compose POW joint===');
