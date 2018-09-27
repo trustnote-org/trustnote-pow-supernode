@@ -89,7 +89,7 @@ function readKeys(onDone){
 			output: process.stdout,
 			//terminal: true
 		});
-		if (err){ // first start
+		if (err){ // first 
 			console.log('failed to read keys, will gen');
 			var suggestedDeviceName = require('os').hostname() || 'Headless';
 			rl.question("Please name this device ["+suggestedDeviceName+"]: ", function(deviceName){
@@ -605,10 +605,14 @@ function createOptimalOutputs(handleOutputs){
 // }
 
 function checkTrustMEAndStartMinig(round_index){
+	if(bMining || bPowSent) {
+		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
+	}
+	bMining = true;
 	if(conf.start_mining_round > round_index) {
 		return console.log("Current round is to early, will not be mining")
 	}
-	bMining = true;
+	console.log(`Mining is on going : ${ bMining } Round : ${ round_index }`)
 	db.takeConnectionFromPool(function(conn){
 		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
 		[round_index, constants.POW_TYPE_TRUSTME], function(rows){
@@ -628,7 +632,6 @@ function checkTrustMEAndStartMinig(round_index){
 								infoStartMining(input_object);
 								console.log("Mining Succeed");
 							}
-							bMining = false;
 						})
 					}
 				})
@@ -771,12 +774,9 @@ eventBus.on('headless_wallet_ready', function(){
 	
 
 	setInterval(function(){
-		console.log(`Minier Status :${bMining}, ready to checkTrustMEAndStartMinig`)
+		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
-			if(bMining || bPowSent) {
-				return
-			}
 			checkTrustMEAndStartMinig(round_index);
 		})
 	},10*1000);
@@ -821,6 +821,7 @@ eventBus.on('headless_wallet_ready', function(){
 						if(rows.length < 1) {
 							return console.log('Can\'t find any equhash unit')
 						}
+						console.log(`Mining POW :${rows[0]}`)
 						if(rows[0]>=8) {
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
