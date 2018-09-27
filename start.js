@@ -15,7 +15,12 @@ var Bitcore = require('bitcore-lib');
 var readline = require('readline');
 
 require('./relay.js');
+<<<<<<< HEAD
 require('./push.js');
+=======
+var push = require('./push.js');
+var mail = require('trustnote-pow-common/mail.js');
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
@@ -33,10 +38,18 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
+var interval;
 
+<<<<<<< HEAD
+=======
+if (conf.permanent_pairing_secret)
+	db.query(
+		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
+		[conf.permanent_pairing_secret]
+	);
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 
 function replaceConsoleLog(){
-	// var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
 	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
 	var writeStream = fs.createWriteStream(log_filename);
 	console.log('---------------');
@@ -100,7 +113,11 @@ function readKeys(onDone){
 					if (err)
 						throw Error('failed to write conf.json: '+err);
 					// rl.question(
+<<<<<<< HEAD
 						console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
+=======
+					console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 						// function(passphrase){
 							// rl.close();
 					var passphrase = ""
@@ -128,7 +145,11 @@ function readKeys(onDone){
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
 			var passphrase = "";
+<<<<<<< HEAD
 			// rl.close();
+=======
+			rl.close();
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
 			if (process.stdout.clearLine)  process.stdout.clearLine();
 			var keys = JSON.parse(data);
@@ -297,7 +318,6 @@ function handleText(from_address, text){
 	}
 }
 
-
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
@@ -317,6 +337,28 @@ function setupChatEventHandlers(){
 	});
 }
 
+<<<<<<< HEAD
+=======
+function notifyAdmin(subject, body){
+	mail.sendmail({
+		to: conf.admin_email,
+		from: conf.from_email,
+		subject: subject,
+		body: body
+	});
+}
+
+function notifyAdminAboutFailedWitnessing(err){
+	console.log('witnessing failed: '+err);
+	notifyAdmin('witnessing failed: '+err, err);
+}
+
+function notifyAdminAboutWitnessingProblem(err){
+	console.log('witnessing problem: '+err);
+	notifyAdmin('witnessing problem: '+err, err);
+}
+
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 function witness(onDone){
 	function onError(){
 		// notifyAdminAboutFailedWitnessing(err);
@@ -376,6 +418,10 @@ function witness(onDone){
 
 function checkAndWitness(){
 	var storage = require('trustnote-pow-common/storage.js');
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 	console.log('checkAndWitness');
 	clearTimeout(forcedWitnessingTimer);
 	if (bWitnessingUnderWay)
@@ -401,36 +447,26 @@ function checkAndWitness(){
 					storage.readLastMainChainIndex(function(max_mci){
 						let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
 						db.query(
-							"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+							"SELECT main_chain_index AS max_my_mci, "+db.getUnixTimestamp('creation_date')+" AS last_ts \n\
+							FROM units JOIN unit_authors USING(unit) WHERE +address=? ORDER BY "+col+" DESC LIMIT 1", 
 							[my_address],
 							function(rows){
 								var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
 								var distance = max_mci - max_my_mci;
-								console.log("distance="+distance);
-								// setTimeout(function()
-								// 	witness(round_index, function(){
-								// 		console.log('witnessing is over');
-								// 		bWitnessingUnderWay = false;
-								// 	});
-								// }, Math.round(Math.random()*3000));
 								if (distance > conf.THRESHOLD_DISTANCE){
 									console.log('distance above threshold, will witness');
-									bWitnessingUnderWay = false;
-									checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-								}
-								else{
+									setTimeout(function(){
+										witness(function(){
+											bWitnessingUnderWay = false;
+										});
+									}, Math.round(Math.random()*3000));
+								} else {
 									bWitnessingUnderWay = false;
 									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
 								}
 							}
 						);
 					});
-					// setTimeout(function(){
-					// 	witness(function(){
-					// 		console.log('witnessing is over');
-					// 		bWitnessingUnderWay = false;
-					// 	});
-					// }, Math.round(Math.random()*3000));
 				});
 			})
 		})
@@ -459,6 +495,10 @@ function determineIfThereAreMyUnitsWithoutMci(handleResult){
 
 function checkForUnconfirmedUnits(distance_to_threshold){
 	var storage = require('trustnote-pow-common/storage.js');
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 	db.query( // look for unstable non-witness-authored units
 		// pow modi
 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
@@ -481,6 +521,7 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 	);
 }
 
+<<<<<<< HEAD
 //add winess payment victor
 function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
 	var storage = require('trustnote-pow-common/storage.js');
@@ -506,6 +547,8 @@ function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
 	);
 }
 
+=======
+>>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
 		return;
@@ -586,24 +629,6 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-// function notifyMinerStartMining() {
-// 	db.takeConnectionFromPool(function(conn){
-// 		round.getCurrentRoundIndex(conn, function(round_index){
-// 			console.log('===Will start mining===')
-// 			pow.startMining(conn, round_index,function(err) {
-// 				if (err) {
-// 					// notifyAdminAboutWitnessingProblem(err)
-// 					conn.release()
-// 					setTimeout(notifyMinerStartMining, 10*1000);
-// 				}
-// 				else {
-// 					conn.release();
-// 				}
-// 			})
-// 		})
-// 	});
-// }
-
 function checkTrustMEAndStartMinig(round_index){
 	if(conf.start_mining_round > round_index) {
 		return console.log("Current round is to early, will not be mining")
@@ -621,6 +646,7 @@ function checkTrustMEAndStartMinig(round_index){
 						bMining = false;
 					}
 					else {
+						interval = Date.now()
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
 								console.log("Mining Error:" + err);
@@ -629,6 +655,7 @@ function checkTrustMEAndStartMinig(round_index){
 								console.log("Mining Succeed");
 							}
 							bMining = false;
+							
 						})
 					}
 				})
@@ -716,18 +743,6 @@ setTimeout(function(){
 						process.exit(0);
 					}, 1000);
 				require('trustnote-pow-common/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
-				// device.setTempKeys(deviceTempPrivKey, devicePrevTempPrivKey, saveTempKeys);
-				// device.setDeviceName(conf.deviceName);
-				// device.setDeviceHub(conf.hub);
-				// let my_device_pubkey = device.getMyDevicePubKey();
-				// console.log("====== my device address: "+my_device_address);
-				// console.log("====== my device pubkey: "+my_device_pubkey);
-				// if (conf.permanent_pairing_secret)
-				// 	console.log("====== my pairing code: "+my_device_pubkey+"@"+conf.hub+"#"+conf.permanent_pairing_secret);
-				// if (conf.bLight){
-				// 	var light_wallet = require('trustnote-pow-common/light_wallet.js');
-				// 	light_wallet.setLightVendorHost(conf.hub);
-				// }
 				eventBus.emit('headless_wallet_ready');
 				setTimeout(replaceConsoleLog, 1000);
 				setTimeout(replaceConsoleInfo, 1000);
@@ -769,6 +784,14 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log('=== Round Switch === : '+round_index);
 	})
 	
+	eventBus.on('peer_version', function (ws, body) {
+		if (body.program == conf.clientName) {
+			if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
+				network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
+			if (compareVersions(body.program_version, '1.5.1') == '<')
+				ws.close(1000, "mandatory upgrade");
+		}
+	});
 
 	setInterval(function(){
 		console.log(`Minier Status :${bMining}, ready to checkTrustMEAndStartMinig`)
@@ -786,6 +809,8 @@ eventBus.on('headless_wallet_ready', function(){
 	})
 	
 	eventBus.on("pow_mined_gift", function(solution){
+		var gap = Date.now() - interval;
+		console.log(`===POW cost: ${gap} ms===`)
 		console.log('===Will compose POW joint===');
 		if(my_address == constants.FOUNDATION_ADDRESS) {
 			bMining = false;
@@ -864,6 +889,9 @@ function getMyStatus(){
 	})
 }
 
+/**
+ * RPC APIs
+ */
 function initRPC() {
 	var rpc = require('json-rpc2');
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
