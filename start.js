@@ -682,6 +682,32 @@ setTimeout(function(){
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
+function compareVersions(currentVersion, minVersion) {
+	if (currentVersion === minVersion) return '==';
+
+	var cV = currentVersion.match(/([0-9])+/g);
+	var mV = minVersion.match(/([0-9])+/g);
+	var l = Math.min(cV.length, mV.length);
+	var diff;
+
+	for (var i = 0; i < l; i++) {
+		diff = parseInt(cV[i], 10) - parseInt(mV[i], 10);
+		if (diff > 0) {
+			return '>';
+		} else if (diff < 0) {
+			return '<'
+		}
+	}
+
+	diff = cV.length - mV.length;
+	if (diff == 0) {
+		return '==';
+	} else if (diff > 0) {
+		return '>';
+	} else if (diff < 0) {
+		return '<';
+	}
+}
 
 eventBus.on('headless_wallet_ready', function(){
 	var network = require('trustnote-pow-common/network.js');
