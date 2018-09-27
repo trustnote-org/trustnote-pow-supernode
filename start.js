@@ -607,7 +607,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 			if(objJoint.unit.messages[0].payload.inputs[0].amount)
 				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.inputs[0].amount);
 			else
-				infoCoinbaseReward(0);
+				infoCoinbaseReward(objJoint.unit.round_index, 0);
 			console.log('=== Coinbase sent ===')
 		}
 	})
