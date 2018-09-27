@@ -46,9 +46,20 @@ function replaceConsoleLog(){
 		writeStream.write(Date().toString()+': ');
 		writeStream.write(util.format.apply(null, arguments) + '\n');
 	};
-	console.warn = console.log;
+	// console.warn = console.log;
 	// console.info = console.log;
 }
+
+function replaceConsoleInfo(){
+	var log_filename = conf.LOG_FILENAME || (appDataDir + '/info.txt');
+	var writeStream = fs.createWriteStream(log_filename);
+	console.info = function(){
+		console.warn(util.format.apply(null, arguments));
+		writeStream.write(Date().toString()+': ');
+		writeStream.write(util.format.apply(null, arguments) + '\n');
+	};
+}
+
 
 // pow add
 var bMining = false; // if miner is mining
@@ -614,6 +625,7 @@ function checkTrustMEAndStartMinig(round_index){
 							if (err) {
 								console.log("Mining Error:" + err);
 							} else {
+								infoStartMining(input_object);
 								console.log("Mining Succeed");
 							}
 							bMining = false;
@@ -638,6 +650,10 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
+			if(objJoint.unit.messages[0].payload.inputs[0].amount)
+				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.inputs[0].amount);
+			else
+				infoCoinbaseReward(0);
 			console.log('=== Coinbase sent ===')
 		}
 	})
@@ -714,6 +730,8 @@ setTimeout(function(){
 				// }
 				eventBus.emit('headless_wallet_ready');
 				setTimeout(replaceConsoleLog, 1000);
+				setTimeout(replaceConsoleInfo, 1000);
+				
 			});
 		});
 	});
@@ -781,6 +799,7 @@ eventBus.on('headless_wallet_ready', function(){
 				bMining = false;
 				bPowSent = true;
 				network.broadcastJoint(objJoint);
+				infoMiningSuccess(JSON.stringify(objJoint.unit.round_index));
 				console.log('===Pow=== objJoin sent')
 			}
 		})
@@ -1119,6 +1138,77 @@ function initRPC() {
 		// listen creates an HTTP server on localhost only
 		server.listen(conf.rpcPort, conf.rpcInterface);
 	});
+}
+
+function infoStartMining(miningInput){
+	console.info("------------------------Start Mining-------------------------");
+	console.info("        My Address: " + my_address);
+	console.info("       Round Index: " + miningInput.roundIndex);
+	console.info("        Difficulty: " + miningInput.difficulty);	
+	console.info("");
+}
+function infoMiningSuccess(round_index){
+	console.info("-----------------------Mining Success------------------------");
+	console.info("        My Address: " + my_address);
+	console.info("       Round Index: " + round_index);
+	console.info("");
+}
+function infoCoinbaseReward(round_index, coinbaseReward){
+	if (validationUtils.isValidAddress(my_address))
+		db.query("SELECT COUNT(*) AS count FROM my_addresses WHERE address = ?", [my_address], function(rows) {
+			if (rows[0].count)
+				db.query(
+					"SELECT asset, is_stable, SUM(amount) AS balance \n\
+					FROM outputs JOIN units USING(unit) \n\
+					WHERE is_spent=0 AND address=? AND sequence='good' AND asset IS NULL \n\
+					GROUP BY is_stable", [my_address],
+					function(rows) {
+						var balance = {
+							base: {
+								stable: 0,
+								pending: 0
+							}
+						};
+						for (var i = 0; i < rows.length; i++) {
+							var row = rows[i];
+							balance.base[row.is_stable ? 'stable' : 'pending'] = row.balance;
+						}
+						db.query(
+							"SELECT SUM(amount) AS coinbasebalance \n\
+							FROM outputs JOIN units USING(unit) \n\
+							WHERE is_spent=0 AND address=? AND sequence='good' \n\
+							AND asset IS NULL AND pow_type=?", [my_address, constants.POW_TYPE_COIN_BASE],
+							function(rowsCoinbase) {
+								if (rowsCoinbase.length ===1 && rowsCoinbase[0].coinbasebalance){
+									console.info("-----------------------Coinbase Reward-----------------------");
+									console.info("        My Address: " + my_address);
+									console.info("       Round Index: " + round_index);
+									console.info("   Coinbase Reward: " + coinbaseReward);
+									console.info("           Balance: " + JSON.stringify(balance.base));
+									console.info("Accumulated Reward: " + rowsCoinbase[0].coinbasebalance);
+									console.info("");
+								}
+								else{
+									console.info("-----------------------Coinbase Reward-----------------------");
+									console.info(" coinbase reward error: coinbase balance not found");
+									console.info("");
+								}
+							}
+						);
+						
+					}
+				);
+			else{
+				console.info("-----------------------Coinbase Reward-----------------------");
+				console.info(" coinbase reward error: address not found");
+				console.info("");
+			}
+		});
+	else {
+		console.info("-----------------------Coinbase Reward-----------------------");
+		console.info(" coinbase reward error: invalid address");
+		console.info("");
+	}
 }
 
 if(conf.bServeAsRpc){
