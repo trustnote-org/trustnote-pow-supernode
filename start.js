@@ -554,6 +554,10 @@ function checkTrustMEAndStartMinig(round_index){
 	if(bMining || bPowSent) {
 		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
 	}
+	if(my_address == constants.FOUNDATION_ADDRESS) {
+		bMining = false;
+		return console.log('Foundation will not mine');
+	}
 	bMining = true;
 	if(conf.start_mining_round > round_index) {
 		return console.log("Current round is to early, will not be mining")
@@ -758,10 +762,6 @@ eventBus.on('headless_wallet_ready', function(){
 		var gap = Date.now() - interval;
 		console.log(`===POW cost: ${gap} ms===`)
 		console.log('===Will compose POW joint===');
-		if(my_address == constants.FOUNDATION_ADDRESS) {
-			bMining = false;
-			return console.log('Foundation will not mine');
-		}
 	
 		const callbacks = composer.getSavingCallbacks({
 			ifNotEnoughFunds: onMiningError,
