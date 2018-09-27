@@ -470,7 +470,6 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 	);
 }
 
-<<<<<<< HEAD
 //add winess payment victor
 function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
 	var storage = require('trustnote-pow-common/storage.js');
@@ -496,8 +495,6 @@ function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
 	);
 }
 
-=======
->>>>>>> 2822561c2de4381d24f824389debdd3b1c481eb2
 function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
 		return;
