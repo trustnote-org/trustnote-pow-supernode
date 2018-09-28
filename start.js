@@ -470,31 +470,6 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 	);
 }
 
-//add winess payment victor
-function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
-	var storage = require('trustnote-pow-common/storage.js');
-	db.query( // look for unstable non-witness-authored units 
-		// pow modi
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
-		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND NOT ( \n\
-				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-			) \n\
-		LIMIT 1",
-		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-		function(rows){
-			if (rows.length === 0)
-				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*1000);
-			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-		}
-	);
-}
-
 function witnessBeforeThreshold(){
 	if (bWitnessingUnderWay)
 		return;
@@ -575,9 +550,13 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-function checkTrustMEAndStartMinig(round_index){
+function checkTrustMEAndStartMining(round_index){
 	if(bMining || bPowSent) {
 		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
+	}
+	if(my_address == constants.FOUNDATION_ADDRESS) {
+		bMining = false;
+		return console.log('Foundation will not mine');
 	}
 	bMining = true;
 	if(conf.start_mining_round > round_index) {
@@ -703,6 +682,32 @@ setTimeout(function(){
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
+function compareVersions(currentVersion, minVersion) {
+	if (currentVersion === minVersion) return '==';
+
+	var cV = currentVersion.match(/([0-9])+/g);
+	var mV = minVersion.match(/([0-9])+/g);
+	var l = Math.min(cV.length, mV.length);
+	var diff;
+
+	for (var i = 0; i < l; i++) {
+		diff = parseInt(cV[i], 10) - parseInt(mV[i], 10);
+		if (diff > 0) {
+			return '>';
+		} else if (diff < 0) {
+			return '<'
+		}
+	}
+
+	diff = cV.length - mV.length;
+	if (diff == 0) {
+		return '==';
+	} else if (diff > 0) {
+		return '>';
+	} else if (diff < 0) {
+		return '<';
+	}
+}
 
 eventBus.on('headless_wallet_ready', function(){
 	var network = require('trustnote-pow-common/network.js');
@@ -745,22 +750,22 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
-			checkTrustMEAndStartMinig(round_index);
+			checkTrustMEAndStartMining(round_index);
 		})
 	},10*1000);
 
 	eventBus.on("launch_pow", function(round_index) {
-		checkTrustMEAndStartMinig(round_index)
+		checkTrustMEAndStartMining(round_index)
 	})
 	
 	eventBus.on("pow_mined_gift", function(solution){
-		var gap = Date.now() - interval;
-		console.log(`===POW cost: ${gap} ms===`)
-		console.log('===Will compose POW joint===');
 		if(my_address == constants.FOUNDATION_ADDRESS) {
 			bMining = false;
 			return console.log('Foundation will not mine');
 		}
+		var gap = Date.now() - interval;
+		console.log(`===POW cost: ${gap} ms===`)
+		console.log('===Will compose POW joint===');
 	
 		const callbacks = composer.getSavingCallbacks({
 			ifNotEnoughFunds: onMiningError,
@@ -786,13 +791,10 @@ eventBus.on('headless_wallet_ready', function(){
 						bMining = false;
 						return console.log('POW already sent');
 					}
-					conn.query("SELECT count(*) from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
+					conn.query("SELECT count(*) as count from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
 						conn.release()
-						if(rows.length < 1) {
-							return console.log('Can\'t find any equhash unit')
-						}
 						console.log(`Mining POW :${rows[0]}`)
-						if(rows[0]>=8) {
+						if(rows[0].count >= 8) {
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
 						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
