@@ -1,27 +1,23 @@
 /*jslint node: true */
 "use strict";
-require('./relay.js');
 var fs = require('fs');
 var crypto = require('crypto');
 var util = require('util');
-var desktopApp = require('trustnote-pow-common/desktop_app.js');
-var push = require('./push.js');
 var constants = require('trustnote-pow-common/constants.js');
-var composer = require('trustnote-pow-common/composer.js');
 var conf = require('trustnote-pow-common/conf.js');
 var objectHash = require('trustnote-pow-common/object_hash.js');
+var desktopApp = require('trustnote-pow-common/desktop_app.js');
 var db = require('trustnote-pow-common/db.js');
 var eventBus = require('trustnote-pow-common/event_bus.js');
 var ecdsaSig = require('trustnote-pow-common/signature.js');
 var Mnemonic = require('bitcore-mnemonic');
 var Bitcore = require('bitcore-lib');
 var readline = require('readline');
-var storage = require('trustnote-pow-common/storage.js');
-var mail = require('trustnote-pow-common/mail.js');
+
+require('./relay.js');
+require('./push.js');
 var round = require('trustnote-pow-common/round.js');
 var pow = require('trustnote-pow-common/pow.js');
-var network = require('trustnote-pow-common/network.js');
-var mutex = require('trustnote-pow-common/mutex.js');
 var validationUtils = require("trustnote-pow-common/validation_utils.js");
 
 if (!conf.bSingleAddress)
@@ -37,22 +33,10 @@ var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
+var interval;
 
-if (conf.permanent_pairing_secret)
-	db.query(
-		"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
-		[conf.permanent_pairing_secret]
-	);
-
-function datetime() {
-	let date = new Date();
-	return ''+ date.getFullYear() + (date.getMonth() < 10 ? '0' :'') + date.getMonth() +
-	(date.getDate() < 10 ? '0' :'') + date.getDate() + (date.getHours() < 10 ? '0' :'') + date.getHours() +
-	(date.getMinutes() < 10 ? '0' :'') + date.getMinutes() + ( date.getSeconds() < 10 ? '0' :'') + date.getSeconds()
-}
 
 function replaceConsoleLog(){
-	// var log_filename = conf.LOG_FILENAME || (appDataDir + '/log'+ datetime() +'.txt');
 	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
 	var writeStream = fs.createWriteStream(log_filename);
 	console.log('---------------');
@@ -62,14 +46,24 @@ function replaceConsoleLog(){
 		writeStream.write(Date().toString()+': ');
 		writeStream.write(util.format.apply(null, arguments) + '\n');
 	};
-	console.warn = console.log;
-	console.info = console.log;
+	// console.warn = console.log;
+	// console.info = console.log;
 }
+
+function replaceConsoleInfo(){
+	var log_filename = conf.LOG_FILENAME || (appDataDir + '/info.txt');
+	var writeStream = fs.createWriteStream(log_filename);
+	console.info = function(){
+		console.warn(util.format.apply(null, arguments));
+		writeStream.write(Date().toString()+': ');
+		writeStream.write(util.format.apply(null, arguments) + '\n');
+	};
+}
+
 
 // pow add
 var bMining = false; // if miner is mining
 var bPowSent = false; // if pow joint is sent
-var currentRound = 1; // to record current round index
 
 function onError(err){
 	// throw Error(err);
@@ -105,51 +99,52 @@ function readKeys(onDone){
 				fs.writeFile(userConfFile, JSON.stringify({deviceName: deviceName, admin_email: "admin@example.com", from_email: "noreply@example.com"}, null, '\t'), 'utf8', function(err){
 					if (err)
 						throw Error('failed to write conf.json: '+err);
-					rl.question(
-						'Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ',
-						function(passphrase){
-							rl.close();
-							if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
-							if (process.stdout.clearLine)  process.stdout.clearLine();
-							var deviceTempPrivKey = crypto.randomBytes(32);
-							var devicePrevTempPrivKey = crypto.randomBytes(32);
+					// rl.question(
+					console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
+						// function(passphrase){
+							// rl.close();
+					var passphrase = ""
+					if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
+					if (process.stdout.clearLine)  process.stdout.clearLine();
+					var deviceTempPrivKey = crypto.randomBytes(32);
+					var devicePrevTempPrivKey = crypto.randomBytes(32);
 
-							var mnemonic = new Mnemonic(); // generates new mnemonic
-							while (!Mnemonic.isValid(mnemonic.toString()))
-								mnemonic = new Mnemonic();
+					var mnemonic = new Mnemonic(); // generates new mnemonic
+					while (!Mnemonic.isValid(mnemonic.toString()))
+						mnemonic = new Mnemonic();
 
-							writeKeys(mnemonic.phrase, deviceTempPrivKey, devicePrevTempPrivKey, function(){
-								console.log('keys created');
-								var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
-								createWallet(xPrivKey, function(){
-									onDone(mnemonic.phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
-								});
-							});
-						}
-					);
+					writeKeys(mnemonic.phrase, deviceTempPrivKey, devicePrevTempPrivKey, function(){
+						console.log('keys created');
+						var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
+						createWallet(xPrivKey, function(){
+							onDone(mnemonic.phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
+						});
+					});
+						// }
+					// );
 				});
 			});
 		}
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
-				var passphrase = "";
-				rl.close();
-				if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
-				if (process.stdout.clearLine)  process.stdout.clearLine();
-				var keys = JSON.parse(data);
-				var deviceTempPrivKey = Buffer(keys.temp_priv_key, 'base64');
-				var devicePrevTempPrivKey = Buffer(keys.prev_temp_priv_key, 'base64');
-				determineIfWalletExists(function(bWalletExists){
-					if (bWalletExists)
+			var passphrase = "";
+			rl.close();
+			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
+			if (process.stdout.clearLine)  process.stdout.clearLine();
+			var keys = JSON.parse(data);
+			var deviceTempPrivKey = Buffer(keys.temp_priv_key, 'base64');
+			var devicePrevTempPrivKey = Buffer(keys.prev_temp_priv_key, 'base64');
+			determineIfWalletExists(function(bWalletExists){
+				if (bWalletExists)
+					onDone(keys.mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
+				else{
+					var mnemonic = new Mnemonic(keys.mnemonic_phrase);
+					var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
+					createWallet(xPrivKey, function(){
 						onDone(keys.mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
-					else{
-						var mnemonic = new Mnemonic(keys.mnemonic_phrase);
-						var xPrivKey = mnemonic.toHDPrivateKey(passphrase);
-						createWallet(xPrivKey, function(){
-							onDone(keys.mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey);
-						});
-					}
-				});
+					});
+				}
+			});
 			// });
 		}
 	});
@@ -176,7 +171,7 @@ function createWallet(xPrivKey, onDone){
 	var strXPubKey = Bitcore.HDPublicKey(xPrivKey.derive("m/44'/0'/0'")).toString();
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
 	walletDefinedByKeys.createWalletByDevices(strXPubKey, 0, 1, [], 'any walletName', function(wallet_id){
-		walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(addressInfo){
+		walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(){
 			onDone();
 		});
 	});
@@ -230,7 +225,7 @@ function determineIfWalletExists(handleResult){
 	});
 }
 
-function signWithLocalPrivateKey(wallet_id, account, is_change, address_index, text_to_sign, handleSig){
+function signWithLocalPrivateKey(account, is_change, address_index, text_to_sign, handleSig){
 	var path = "m/44'/0'/" + account + "'/"+is_change+"/"+address_index;
 	var privateKey = xPrivKey.derive(path).privateKey;
 	var privKeyBuf = privateKey.bn.toBuffer({size:32}); // https://github.com/bitpay/bitcore-lib/issues/47
@@ -259,7 +254,7 @@ var signer = {
 				if (rows.length !== 1)
 					throw Error(rows.length+" indexes for address "+address+" and signing path "+signing_path);
 				var row = rows[0];
-				signWithLocalPrivateKey(row.wallet, row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
+				signWithLocalPrivateKey(row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
 					handleSignature(null, sig);
 				});
 			}
@@ -302,7 +297,6 @@ function handleText(from_address, text){
 	}
 }
 
-
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
@@ -322,28 +316,8 @@ function setupChatEventHandlers(){
 	});
 }
 
-function notifyAdmin(subject, body){
-	mail.sendmail({
-		to: conf.admin_email,
-		from: conf.from_email,
-		subject: subject,
-		body: body
-	});
-}
-
-function notifyAdminAboutFailedWitnessing(err){
-	console.log('witnessing failed: '+err);
-	notifyAdmin('witnessing failed: '+err, err);
-}
-
-function notifyAdminAboutWitnessingProblem(err){
-	console.log('witnessing problem: '+err);
-	notifyAdmin('witnessing problem: '+err, err);
-}
-
-
 function witness(onDone){
-	function onError(err){
+	function onError(){
 		// notifyAdminAboutFailedWitnessing(err);
 		setTimeout(onDone, 60000); // pause after error
 	}
@@ -400,6 +374,7 @@ function witness(onDone){
 
 
 function checkAndWitness(){
+	var storage = require('trustnote-pow-common/storage.js');
 	console.log('checkAndWitness');
 	clearTimeout(forcedWitnessingTimer);
 	if (bWitnessingUnderWay)
@@ -425,36 +400,26 @@ function checkAndWitness(){
 					storage.readLastMainChainIndex(function(max_mci){
 						let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
 						db.query(
-							"SELECT main_chain_index AS max_my_mci FROM units JOIN unit_authors USING(unit) WHERE address=? ORDER BY "+col+" DESC LIMIT 1",
+							"SELECT main_chain_index AS max_my_mci, "+db.getUnixTimestamp('creation_date')+" AS last_ts \n\
+							FROM units JOIN unit_authors USING(unit) WHERE +address=? ORDER BY "+col+" DESC LIMIT 1", 
 							[my_address],
 							function(rows){
 								var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
 								var distance = max_mci - max_my_mci;
-								console.log("distance="+distance);
-								// setTimeout(function()
-								// 	witness(round_index, function(){
-								// 		console.log('witnessing is over');
-								// 		bWitnessingUnderWay = false;
-								// 	});
-								// }, Math.round(Math.random()*3000));
 								if (distance > conf.THRESHOLD_DISTANCE){
 									console.log('distance above threshold, will witness');
-									bWitnessingUnderWay = false;
-									checkForUnconfirmedUnitsAndWitness(conf.THRESHOLD_DISTANCE/distance);
-								}
-								else{
+									setTimeout(function(){
+										witness(function(){
+											bWitnessingUnderWay = false;
+										});
+									}, Math.round(Math.random()*3000));
+								} else {
 									bWitnessingUnderWay = false;
 									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
 								}
 							}
 						);
 					});
-					// setTimeout(function(){
-					// 	witness(function(){
-					// 		console.log('witnessing is over');
-					// 		bWitnessingUnderWay = false;
-					// 	});
-					// }, Math.round(Math.random()*3000));
 				});
 			})
 		})
@@ -482,6 +447,7 @@ function determineIfThereAreMyUnitsWithoutMci(handleResult){
 }
 
 function checkForUnconfirmedUnits(distance_to_threshold){
+	var storage = require('trustnote-pow-common/storage.js');
 	db.query( // look for unstable non-witness-authored units
 		// pow modi
 		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
@@ -498,30 +464,6 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 			if (rows.length === 0)
 				return;
 			var timeout = Math.round((distance_to_threshold + Math.random())*10000);
-			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-		}
-	);
-}
-
-//add winess payment victor
-function checkForUnconfirmedUnitsAndWitness(distance_to_threshold){
-	db.query( // look for unstable non-witness-authored units 
-		// pow modi
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
-		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND NOT ( \n\
-				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-			) \n\
-		LIMIT 1",
-		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-		function(rows){
-			if (rows.length === 0)
-				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*1000);
 			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
 		}
@@ -608,29 +550,19 @@ function createOptimalOutputs(handleOutputs){
 	});
 }
 
-// function notifyMinerStartMining() {
-// 	db.takeConnectionFromPool(function(conn){
-// 		round.getCurrentRoundIndex(conn, function(round_index){
-// 			console.log('===Will start mining===')
-// 			pow.startMining(conn, round_index,function(err) {
-// 				if (err) {
-// 					// notifyAdminAboutWitnessingProblem(err)
-// 					conn.release()
-// 					setTimeout(notifyMinerStartMining, 10*1000);
-// 				}
-// 				else {
-// 					conn.release();
-// 				}
-// 			})
-// 		})
-// 	});
-// }
-
-function checkTrustMEAndStartMinig(round_index){
+function checkTrustMEAndStartMining(round_index){
+	if(bMining || bPowSent) {
+		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
+	}
+	if(my_address == constants.FOUNDATION_ADDRESS) {
+		bMining = false;
+		return console.log('Foundation will not mine');
+	}
+	bMining = true;
 	if(conf.start_mining_round > round_index) {
 		return console.log("Current round is to early, will not be mining")
 	}
-	bMining = true;
+	console.log(`Mining is on going : ${ bMining } Round : ${ round_index }`)
 	db.takeConnectionFromPool(function(conn){
 		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
 		[round_index, constants.POW_TYPE_TRUSTME], function(rows){
@@ -643,13 +575,14 @@ function checkTrustMEAndStartMinig(round_index){
 						bMining = false;
 					}
 					else {
+						interval = Date.now()
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
 								console.log("Mining Error:" + err);
 							} else {
+								infoStartMining(input_object);
 								console.log("Mining Succeed");
 							}
-							bMining = false;
 						})
 					}
 				})
@@ -663,11 +596,18 @@ function checkTrustMEAndStartMinig(round_index){
 }
 
 function checkRoundAndComposeCoinbase(round_index) {
+	var network = require('trustnote-pow-common/network.js');
+	var composer = require('trustnote-pow-common/composer.js');
+
 	const callbacks = composer.getSavingCallbacks({
 		ifNotEnoughFunds: onError,
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
+			if(objJoint.unit.messages[0].payload.inputs[0].amount)
+				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.inputs[0].amount);
+			else
+				infoCoinbaseReward(objJoint.unit.round_index, 0);
 			console.log('=== Coinbase sent ===')
 		}
 	})
@@ -709,10 +649,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 }
 
 setTimeout(function(){
-	readKeys(function(mnemonic_phrase, passphrase, deviceTempPrivKey, devicePrevTempPrivKey){
-		var saveTempKeys = function(new_temp_key, new_prev_temp_key, onDone){
-			writeKeys(mnemonic_phrase, new_temp_key, new_prev_temp_key, onDone);
-		};
+	readKeys(function(mnemonic_phrase, passphrase){
 		var mnemonic = new Mnemonic(mnemonic_phrase);
 		// global
 		xPrivKey = mnemonic.toHDPrivateKey(passphrase);
@@ -733,20 +670,10 @@ setTimeout(function(){
 						process.exit(0);
 					}, 1000);
 				require('trustnote-pow-common/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
-				// device.setTempKeys(deviceTempPrivKey, devicePrevTempPrivKey, saveTempKeys);
-				// device.setDeviceName(conf.deviceName);
-				// device.setDeviceHub(conf.hub);
-				// let my_device_pubkey = device.getMyDevicePubKey();
-				// console.log("====== my device address: "+my_device_address);
-				// console.log("====== my device pubkey: "+my_device_pubkey);
-				// if (conf.permanent_pairing_secret)
-				// 	console.log("====== my pairing code: "+my_device_pubkey+"@"+conf.hub+"#"+conf.permanent_pairing_secret);
-				// if (conf.bLight){
-				// 	var light_wallet = require('trustnote-pow-common/light_wallet.js');
-				// 	light_wallet.setLightVendorHost(conf.hub);
-				// }
 				eventBus.emit('headless_wallet_ready');
 				setTimeout(replaceConsoleLog, 1000);
+				setTimeout(replaceConsoleInfo, 1000);
+				
 			});
 		});
 	});
@@ -754,91 +681,6 @@ setTimeout(function(){
 
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
-
-
-eventBus.on('headless_wallet_ready', function(){
-	if (!conf.admin_email || !conf.from_email){
-		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
-		process.exit(1);
-	}
-	setupChatEventHandlers();
-	readSingleAddress(function(address){
-		my_address = address;
-		//checkAndWitness();
-		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
-	});
-	
-	eventBus.on('round_switch', function(round_index){
-		bMining = false;
-		bPowSent = false;
-		pow.stopMining(round_index-1)
-		console.log('=== Round Switch === : '+round_index);
-	})
-	
-
-	setInterval(function(){
-		console.log(`Minier Status :${bMining}, ready to checkTrustMEAndStartMinig`)
-		round.getCurrentRoundIndexByDb(function(round_index){
-			checkRoundAndComposeCoinbase(round_index);
-			if(bMining || bPowSent) {
-				return
-			}
-			checkTrustMEAndStartMinig(round_index);
-		})
-	},10*1000);
-
-	eventBus.on("launch_pow", function(round_index) {
-		checkTrustMEAndStartMinig(round_index)
-	})
-	
-	eventBus.on("pow_mined_gift", function(solution){
-		console.log('===Will compose POW joint===');
-		if(my_address == constants.FOUNDATION_ADDRESS) {
-			bMining = false;
-			return console.log('Foundation will not mine');
-		}
-	
-		const callbacks = composer.getSavingCallbacks({
-			ifNotEnoughFunds: onMiningError,
-			ifError: onMiningError,
-			ifOk: function(objJoint){
-				bMining = false;
-				bPowSent = true;
-				network.broadcastJoint(objJoint);
-				console.log('===Pow=== objJoin sent')
-			}
-		})
-	
-		db.takeConnectionFromPool(function(conn){
-			round.getCurrentRoundIndex(conn, function(round_index){
-				if(round_index != solution.round){
-					conn.release();
-					return console.log("Round switched won't compose pow with wrong round index")
-				}
-				round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
-					if(bExist) {
-						conn.release()
-						bMining = false;
-						return console.log('POW already sent');
-					}
-					conn.release()
-					composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
-				});
-			})
-		});
-	})	
-});
-
-eventBus.on('peer_version', function (ws, body) {
-	if (body.program == conf.clientName) {
-		if (conf.minClientVersion && compareVersions(body.program_version, '1.0.7') == '==')
-			return;
-		if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
-			network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
-		// if (compareVersions(body.program_version, '1.5.1') == '<')
-		// 	ws.close(1000, "mandatory upgrade");
-	}
-});
 
 function compareVersions(currentVersion, minVersion) {
 	if (currentVersion === minVersion) return '==';
@@ -866,6 +708,103 @@ function compareVersions(currentVersion, minVersion) {
 		return '<';
 	}
 }
+
+eventBus.on('headless_wallet_ready', function(){
+	var network = require('trustnote-pow-common/network.js');
+	var composer = require('trustnote-pow-common/composer.js');
+	
+	if (conf.permanent_pairing_secret)
+		db.query(
+			"INSERT "+db.getIgnore()+" INTO pairing_secrets (pairing_secret, is_permanent, expiry_date) VALUES (?, 1, '2038-01-01')",
+			[conf.permanent_pairing_secret]
+		);
+		
+	if (!conf.admin_email || !conf.from_email){
+		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
+		process.exit(1);
+	}
+	setupChatEventHandlers();
+	readSingleAddress(function(address){
+		my_address = address;
+		//checkAndWitness();
+		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
+	});
+	
+	eventBus.on('round_switch', function(round_index){
+		bMining = false;
+		bPowSent = false;
+		pow.stopMining(round_index-1)
+		console.log('=== Round Switch === : '+round_index);
+	})
+	
+	eventBus.on('peer_version', function (ws, body) {
+		if (body.program == conf.clientName) {
+			if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
+				network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
+			if (compareVersions(body.program_version, '1.5.1') == '<')
+				ws.close(1000, "mandatory upgrade");
+		}
+	});
+
+	setInterval(function(){
+		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
+		round.getCurrentRoundIndexByDb(function(round_index){
+			checkRoundAndComposeCoinbase(round_index);
+			checkTrustMEAndStartMining(round_index);
+		})
+	},10*1000);
+
+	eventBus.on("launch_pow", function(round_index) {
+		checkTrustMEAndStartMining(round_index)
+	})
+	
+	eventBus.on("pow_mined_gift", function(solution){
+		if(my_address == constants.FOUNDATION_ADDRESS) {
+			bMining = false;
+			return console.log('Foundation will not mine');
+		}
+		var gap = Date.now() - interval;
+		console.log(`===POW cost: ${gap} ms===`)
+		console.log('===Will compose POW joint===');
+	
+		const callbacks = composer.getSavingCallbacks({
+			ifNotEnoughFunds: onMiningError,
+			ifError: onMiningError,
+			ifOk: function(objJoint){
+				bMining = false;
+				bPowSent = true;
+				network.broadcastJoint(objJoint);
+				infoMiningSuccess(JSON.stringify(objJoint.unit.round_index));
+				console.log('===Pow=== objJoin sent')
+			}
+		})
+	
+		db.takeConnectionFromPool(function(conn){
+			round.getCurrentRoundIndex(conn, function(round_index){
+				if(round_index != solution.round){
+					conn.release();
+					return console.log("Round switched won't compose pow with wrong round index")
+				}
+				round.checkIfPowUnitByRoundIndexAndAddressExists(conn, round_index, my_address, function(bExist) {
+					if(bExist) {
+						conn.release()
+						bMining = false;
+						return console.log('POW already sent');
+					}
+					conn.query("SELECT count(*) as count from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
+						conn.release()
+						console.log(`Mining POW :${rows[0]}`)
+						if(rows[0].count >= 8) {
+							return console.log('There is already more than 8 pow joints, will not compose another one')
+						}
+						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
+					})
+				});
+			})
+		});
+	})
+});
+
 
 function issueChangeAddressAndSendPayment(asset, amount, to_address, device_address, onDone){
 	if (conf.bSingleAddress){
@@ -898,11 +837,16 @@ function getMyStatus(){
 	})
 }
 
+/**
+ * RPC APIs
+ */
 function initRPC() {
 	var rpc = require('json-rpc2');
 	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
 	var Wallet = require('trustnote-pow-common/wallet.js');
 	var balances = require('trustnote-pow-common/balances.js');
+	var mutex = require('trustnote-pow-common/mutex.js');
+	var storage = require('trustnote-pow-common/storage.js');
 
 	var server = rpc.Server.$create({
 		'websocket': true, // is true by default
@@ -1170,6 +1114,77 @@ function initRPC() {
 		// listen creates an HTTP server on localhost only
 		server.listen(conf.rpcPort, conf.rpcInterface);
 	});
+}
+
+function infoStartMining(miningInput){
+	console.info("------------------------Start Mining-------------------------");
+	console.info("        My Address: " + my_address);
+	console.info("       Round Index: " + miningInput.roundIndex);
+	console.info("        Difficulty: " + miningInput.difficulty);	
+	console.info("");
+}
+function infoMiningSuccess(round_index){
+	console.info("-----------------------Mining Success------------------------");
+	console.info("        My Address: " + my_address);
+	console.info("       Round Index: " + round_index);
+	console.info("");
+}
+function infoCoinbaseReward(round_index, coinbaseReward){
+	if (validationUtils.isValidAddress(my_address))
+		db.query("SELECT COUNT(*) AS count FROM my_addresses WHERE address = ?", [my_address], function(rows) {
+			if (rows[0].count)
+				db.query(
+					"SELECT asset, is_stable, SUM(amount) AS balance \n\
+					FROM outputs JOIN units USING(unit) \n\
+					WHERE is_spent=0 AND address=? AND sequence='good' AND asset IS NULL \n\
+					GROUP BY is_stable", [my_address],
+					function(rows) {
+						var balance = {
+							base: {
+								stable: 0,
+								pending: 0
+							}
+						};
+						for (var i = 0; i < rows.length; i++) {
+							var row = rows[i];
+							balance.base[row.is_stable ? 'stable' : 'pending'] = row.balance;
+						}
+						db.query(
+							"SELECT SUM(amount) AS coinbasebalance \n\
+							FROM outputs JOIN units USING(unit) \n\
+							WHERE is_spent=0 AND address=? AND sequence='good' \n\
+							AND asset IS NULL AND pow_type=?", [my_address, constants.POW_TYPE_COIN_BASE],
+							function(rowsCoinbase) {
+								if (rowsCoinbase.length ===1 && rowsCoinbase[0].coinbasebalance){
+									console.info("-----------------------Coinbase Reward-----------------------");
+									console.info("        My Address: " + my_address);
+									console.info("       Round Index: " + round_index);
+									console.info("   Coinbase Reward: " + coinbaseReward);
+									console.info("           Balance: " + JSON.stringify(balance.base));
+									console.info("Accumulated Reward: " + rowsCoinbase[0].coinbasebalance);
+									console.info("");
+								}
+								else{
+									console.info("-----------------------Coinbase Reward-----------------------");
+									console.info(" coinbase reward error: coinbase balance not found");
+									console.info("");
+								}
+							}
+						);
+						
+					}
+				);
+			else{
+				console.info("-----------------------Coinbase Reward-----------------------");
+				console.info(" coinbase reward error: address not found");
+				console.info("");
+			}
+		});
+	else {
+		console.info("-----------------------Coinbase Reward-----------------------");
+		console.info(" coinbase reward error: invalid address");
+		console.info("");
+	}
 }
 
 if(conf.bServeAsRpc){

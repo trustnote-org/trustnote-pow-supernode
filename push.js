@@ -3,32 +3,33 @@ var conf = require('trustnote-pow-common/conf');
 var eventBus = require('trustnote-pow-common/event_bus.js');
 var https = require('https');
 
+eventBus.on('headless_wallet_ready', function() {
+	eventBus.on('peer_sent_new_message', function(ws, objDeviceMessage) {
+		sendPushAboutMessage(objDeviceMessage.to);
+	});
 
-eventBus.on('peer_sent_new_message', function(ws, objDeviceMessage) {
-	sendPushAboutMessage(objDeviceMessage.to);
-});
+	eventBus.on("enableNotification", function(deviceAddress, registrationId) {
+		db.query("SELECT device_address FROM push_registrations WHERE device_address=? LIMIT 0,1", [deviceAddress], function(rows) {
+			if (rows.length === 0) {
+				db.query("INSERT "+db.getIgnore()+" INTO push_registrations (registrationId, device_address) VALUES (?, ?)", [registrationId, deviceAddress], function() {
 
-eventBus.on("enableNotification", function(deviceAddress, registrationId) {
-	db.query("SELECT device_address FROM push_registrations WHERE device_address=? LIMIT 0,1", [deviceAddress], function(rows) {
-		if (rows.length === 0) {
-			db.query("INSERT "+db.getIgnore()+" INTO push_registrations (registrationId, device_address) VALUES (?, ?)", [registrationId, deviceAddress], function() {
+				});
+			} else if (rows.length) {
+				if (rows[0].registration_id !== registrationId) {
+					db.query("UPDATE push_registrations SET registrationId = ? WHERE device_address = ?", [registrationId, deviceAddress], function() {
 
-			});
-		} else if (rows.length) {
-			if (rows[0].registration_id !== registrationId) {
-				db.query("UPDATE push_registrations SET registrationId = ? WHERE device_address = ?", [registrationId, deviceAddress], function() {
-
-				})
+					})
+				}
 			}
-		}
+		});
 	});
-});
 
-eventBus.on("disableNotification", function(deviceAddress, registrationId) {
-	db.query("DELETE FROM push_registrations WHERE registrationId=? and device_address=?", [registrationId, deviceAddress], function() {
+	eventBus.on("disableNotification", function(deviceAddress, registrationId) {
+		db.query("DELETE FROM push_registrations WHERE registrationId=? and device_address=?", [registrationId, deviceAddress], function() {
 
+		});
 	});
-});
+})
 
 function sendRest(registrationIds) {
 	var options = {
