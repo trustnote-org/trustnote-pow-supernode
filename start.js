@@ -89,7 +89,7 @@ function readKeys(onDone){
 			output: process.stdout,
 			//terminal: true
 		});
-		if (err){ // first 
+		if (err){ // first start
 			console.log('failed to read keys, will gen');
 			var suggestedDeviceName = require('os').hostname() || 'Headless';
 			rl.question("Please name this device ["+suggestedDeviceName+"]: ", function(deviceName){
@@ -100,7 +100,7 @@ function readKeys(onDone){
 					if (err)
 						throw Error('failed to write conf.json: '+err);
 					// rl.question(
-						console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
+					console.log('Device name saved to '+userConfFile+', you can edit it later if you like.\n\nPassphrase for your private keys: ')
 						// function(passphrase){
 							// rl.close();
 					var passphrase = ""
@@ -128,7 +128,7 @@ function readKeys(onDone){
 		else{ // 2nd or later start
 			// rl.question("Passphrase: ", function(passphrase){
 			var passphrase = "";
-			// rl.close();
+			rl.close();
 			if (process.stdout.moveCursor) process.stdout.moveCursor(0, -1);
 			if (process.stdout.clearLine)  process.stdout.clearLine();
 			var keys = JSON.parse(data);
