@@ -604,8 +604,8 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifError: onError,
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
-			if(objJoint.unit.messages[0].payload.inputs[0].amount)
-				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.inputs[0].amount);
+			if(objJoint.unit.messages[0].payload.outputs[0].amount)
+				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.outputs[0].amount);
 			else
 				infoCoinbaseReward(objJoint.unit.round_index, 0);
 			console.log('=== Coinbase sent ===')
