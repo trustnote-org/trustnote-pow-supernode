@@ -29,6 +29,7 @@ var bWitnessingUnderWay = false;
 var forcedWitnessingTimer;
 var count_witnessings_available = 0;
 
+var last_round_index = Infinity;
 var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
@@ -746,10 +747,17 @@ eventBus.on('headless_wallet_ready', function(){
 		}
 	});
 
+	eventBus.on('updated_last_round_index_from_peers', function (nLastRoundIndexFromPeers){
+		last_round_index = nLastRoundIndexFromPeers;
+	})
+
 	setInterval(function(){
 		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
+			if(round_index < last_round_index) {
+				return console.log(`Last Round Index is ${ last_round_indx }, will not mining`)
+			}
 			checkTrustMEAndStartMining(round_index);
 		})
 	},10*1000);
@@ -781,6 +789,9 @@ eventBus.on('headless_wallet_ready', function(){
 	
 		db.takeConnectionFromPool(function(conn){
 			round.getCurrentRoundIndex(conn, function(round_index){
+				if(round_index < last_round_index) {
+					return console.log(`Last Round Index is ${ last_round_indx }, will not mining`)
+				}
 				if(round_index != solution.round){
 					conn.release();
 					return console.log("Round switched won't compose pow with wrong round index")
@@ -789,12 +800,15 @@ eventBus.on('headless_wallet_ready', function(){
 					if(bExist) {
 						conn.release()
 						bMining = false;
+						bPowSent = true;
 						return console.log('POW already sent');
 					}
 					conn.query("SELECT count(*) as count from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
 						conn.release()
-						console.log(`Mining POW :${rows[0]}`)
+						console.log(`Mining POW :${rows[0].count}`)
 						if(rows[0].count >= 8) {
+							bMining = false;
+							bPowSent = true;
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
 						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
