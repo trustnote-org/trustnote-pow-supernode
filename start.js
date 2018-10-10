@@ -756,7 +756,7 @@ eventBus.on('headless_wallet_ready', function(){
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
 			if(round_index < last_round_index) {
-				return console.log(`Last Round Index is ${ last_round_indx }, will not mining`)
+				return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
 			}
 			checkTrustMEAndStartMining(round_index);
 		})
