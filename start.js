@@ -601,6 +601,13 @@ function checkTrustMEAndStartMining(round_index){
 }
 
 function checkRoundAndComposeCoinbase(round_index) {
+	if(round_index===1) {
+		return;
+	}
+	if(round_index < last_round_index) {
+		return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
+	}
+
 	var network = require('trustnote-pow-common/network.js');
 	var composer = require('trustnote-pow-common/composer.js');
 
@@ -619,10 +626,6 @@ function checkRoundAndComposeCoinbase(round_index) {
 	
 	console.log('Going to compose Coinbase')
 	db.takeConnectionFromPool(function(conn){
-		if(round_index===1) {
-			conn.release();
-			return
-		}
 		determineIfIAmWitness(conn, round_index-1, function(bWitness){
 			if(bWitness) {
 				conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
