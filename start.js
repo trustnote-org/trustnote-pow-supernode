@@ -556,18 +556,16 @@ function checkTrustMEAndStartMining(round_index){
 		return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
 	}
 	if(bMining || bPowSent) {
-		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
+		return console.log(`Checking if I can Mining ${ bMining } ${ bPowSent } ${ round_index }`)
 	}
 	if(my_address == constants.FOUNDATION_ADDRESS) {
-		bMining = false;
 		return console.log('Foundation will not mine');
+	}
+	if(conf.start_mining_round > round_index) {
+		return console.log("Current round is to early, will not be mining")
 	}
 	console.log(`Mining is on going : ${ bMining } Round : ${ round_index }`)
 	bMining = true;
-	if(conf.start_mining_round > round_index) {
-		bMining = false;
-		return console.log("Current round is to early, will not be mining")
-	}
 	db.takeConnectionFromPool(function(conn){
 		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
 		[round_index, constants.POW_TYPE_TRUSTME], function(rows){
