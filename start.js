@@ -552,6 +552,9 @@ function createOptimalOutputs(handleOutputs){
 }
 
 function checkTrustMEAndStartMining(round_index){
+	if(round_index < last_round_index) {
+		return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
+	}
 	if(bMining || bPowSent) {
 		return console.log(`Checking if I can Mining ${bMining} ${bPowSent} ${round_index}`)
 	}
@@ -559,11 +562,12 @@ function checkTrustMEAndStartMining(round_index){
 		bMining = false;
 		return console.log('Foundation will not mine');
 	}
+	console.log(`Mining is on going : ${ bMining } Round : ${ round_index }`)
 	bMining = true;
 	if(conf.start_mining_round > round_index) {
+		bMining = false;
 		return console.log("Current round is to early, will not be mining")
 	}
-	console.log(`Mining is on going : ${ bMining } Round : ${ round_index }`)
 	db.takeConnectionFromPool(function(conn){
 		conn.query("SELECT witnessed_level FROM units WHERE round_index=? AND is_stable=1 AND is_on_main_chain=1 AND pow_type=? LIMIT 1",
 		[round_index, constants.POW_TYPE_TRUSTME], function(rows){
@@ -755,9 +759,6 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
 		round.getCurrentRoundIndexByDb(function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
-			if(round_index < last_round_index) {
-				return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
-			}
 			checkTrustMEAndStartMining(round_index);
 		})
 	},10*1000);
@@ -840,7 +841,7 @@ function issueChangeAddressAndSendPayment(asset, amount, to_address, device_addr
 	}
 }
 
-function getMyStatus(){
+function getMyStatus(cb){
 	db.query("SELECT count(*) FROM units JOIN unit_authors USING(unit) where address=? and pow_type=1", [my_address], function(mine_rows){
 		db.query("SELECT sum(amount) FROM outputs JOIN units USING(unit) where pow_type=3 and address=?", [my_address], function(coinbase_rows){
 			Wallet.readBalance(wallet_id, function(balances) {
