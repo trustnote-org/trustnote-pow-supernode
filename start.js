@@ -786,6 +786,7 @@ eventBus.on('headless_wallet_ready', function(){
 				//	close the connection while the remote is out of date
 				//	so, the remote will be forced to update
 				//
+				console.log(`**** Client: ${ oWs.host} version is too low, will cancel the connection.`)
 				oWs.close( 1000, "mandatory upgrade" );
 			}
 		}
