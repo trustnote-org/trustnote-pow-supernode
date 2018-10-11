@@ -1,8 +1,14 @@
 /*jslint node: true */
 "use strict";
 
-exports.clientName = 'TTT';
-exports.minClientVersion = '1.1.0';
+/**
+ *	for version control
+ */
+exports.clientName          = 'trustnote-pow-supernode';
+exports.minClientVersion    = '1.1.0';
+
+
+
 exports.WS_PROTOCOL = 'ws://';
 // https://console.developers.google.com
 exports.pushApiProjectNumber = 0;

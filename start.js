@@ -740,14 +740,54 @@ eventBus.on('headless_wallet_ready', function(){
 		bPowSent = false;
 		pow.stopMining(round_index-1)
 		console.log('=== Round Switch === : '+round_index);
-	})
-	
-	eventBus.on('peer_version', function (ws, body) {
-		if (body.program == conf.clientName) {
-			if (conf.minClientVersion && compareVersions(body.program_version, conf.minClientVersion) == '<')
-				network.sendJustsaying(ws, 'new_version', {version: conf.minClientVersion});
-			if (compareVersions(body.program_version, '1.5.1') == '<')
-				ws.close(1000, "mandatory upgrade");
+	});
+
+
+	/**
+	 *	POW MOD
+	 *	
+	 *	@datetime	2018/10/11 2:39 PM	
+	 *	start using version control
+	 *
+	 *
+	 * 	[REMOTE SIDE]
+	 * 		- data in variable oBody comes from remote client
+	 * 	oBody.program		= { package.json }.name
+	 *	oBody.program_version	= { package.json }.version
+	 *
+	 *
+	 * 	[LOCAL SIDE]
+	 * 		- data in variable conf stores in local from been loaded on boot
+	 *	conf.clientName		= { conf.js }.clientName
+	 *	conf.minClientVersion	= { conf.js }.minClientVersion
+	 * 	conf.program		= { package.json }.name		//	loaded on boot
+	 *	conf.program_version	= { package.json }.version	//	loaded on boot
+	 *
+	 */
+	eventBus.on( 'peer_version', function( oWs, oBody )
+	{
+		if ( oBody.program === conf.clientName )
+		{
+			//
+			//	user specified conf.minClientVersion
+			//
+			if ( conf.minClientVersion &&
+				compareVersions( oBody.program_version, conf.minClientVersion ) === '<' )
+			{
+				//
+				//	just tell remote the conf.minClientVersion
+				//
+				network.sendJustsaying( oWs, 'new_version', { version : conf.minClientVersion } );
+			}
+
+			if ( compareVersions( oBody.program_version, conf.program_version ) === '<' )
+			{
+				//
+				//	close the connection while the remote is out of date
+				//	so, the remote will be forced to update
+				//
+				oWs.close( 1000, "mandatory upgrade" );
+			}
 		}
 	});
 
