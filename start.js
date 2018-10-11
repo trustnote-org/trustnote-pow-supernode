@@ -576,14 +576,13 @@ function checkTrustMEAndStartMining(round_index){
 					conn.release();
 					if (err) {
 						// notifyAdminAboutWitnessingProblem(err)
-						console.log("Mining Error:" + err);
-						bMining = false;
+						return onMiningError(err);
 					}
 					else {
 						interval = Date.now()
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
-								console.log("Mining Error:" + err);
+								return onMiningError(err);
 							} else {
 								infoStartMining(input_object);
 								console.log("Mining Succeed");
