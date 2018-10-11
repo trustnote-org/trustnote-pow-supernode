@@ -766,8 +766,8 @@ eventBus.on('headless_wallet_ready', function(){
 	 */
 	eventBus.on( 'peer_version', function( oWs, oBody )
 	{
-		// if ( oBody.program === conf.clientName )
-		// {
+		if ( oBody.program === conf.clientName )
+		{
 			//
 			//	user specified conf.minClientVersion
 			//
@@ -786,10 +786,17 @@ eventBus.on('headless_wallet_ready', function(){
 				//	close the connection while the remote is out of date
 				//	so, the remote will be forced to update
 				//
-				console.log(`*************\n***** Client: ${ oWs.host} version is too low, will cancel the connection.\n*************`)
+				console.log(`*************\n***** Client: ${oWs.host} version is too low, will cancel the connection.\n*************`)
 				oWs.close( 1000, "mandatory upgrade" );
 			}
-		// }
+		}
+		var library = require('trustnote-pow-common/package.json');
+		if (compareVersions(oBody.library_version, library.version) === '>' ) {
+			console.log(`*************\n***** Library: My Library version is too low.\n*************`)
+		} else if (compareVersions(oBody.library_version, library.version) === '<' ) {
+			console.log(`*************\n***** Library: ${oWs.host} library version is too low, will cancel the connection.\n*************`)
+			oWs.close( 1000, "mandatory upgrade" );
+		}
 	});
 
 	eventBus.on('updated_last_round_index_from_peers', function (nLastRoundIndexFromPeers){
