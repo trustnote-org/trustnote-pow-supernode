@@ -790,6 +790,7 @@ eventBus.on('headless_wallet_ready', function(){
 		db.takeConnectionFromPool(function(conn){
 			round.getCurrentRoundIndex(conn, function(round_index){
 				if(round_index < last_round_index) {
+					conn.release()
 					return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
 				}
 				if(round_index != solution.round){
