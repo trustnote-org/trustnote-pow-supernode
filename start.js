@@ -578,14 +578,11 @@ function checkTrustMEAndStartMining(round_index){
 					}
 					else {
 						interval = Date.now()
+						infoStartMining(input_object);
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
 								return onMiningError(err);
 							} else {
-								if (input_object.roundIndex < round_index) {
-									return console.log("Mining Finished")
-								}
-								infoStartMining(input_object);
 								console.log("Mining Finished");
 							}
 						})
