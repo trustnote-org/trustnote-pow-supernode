@@ -582,8 +582,11 @@ function checkTrustMEAndStartMining(round_index){
 							if (err) {
 								return onMiningError(err);
 							} else {
+								if (input_object.roundIndex < round_index) {
+									return console.log("Mining Finished")
+								}
 								infoStartMining(input_object);
-								console.log("Mining Succeed");
+								console.log("Mining Finished");
 							}
 						})
 					}
