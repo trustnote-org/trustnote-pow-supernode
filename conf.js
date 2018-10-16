@@ -19,6 +19,7 @@ exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
 exports.bLight = false;
 exports.bServeAsRpc = false;
+exports.rpcPort = 6553;
 
 // this is used by wallet vendor only, to redirect bug reports to developers' email
 exports.bug_sink_email = 'admin@example.org';
