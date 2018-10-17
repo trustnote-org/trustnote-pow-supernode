@@ -890,6 +890,17 @@ function sendPayment(asset, amount, to_address, change_address, device_address, 
 	);
 }
 
+function issueOrSelectStaticChangeAddress(handleAddress){
+	var walletDefinedByKeys = require('trustnote-pow-common/wallet_defined_by_keys.js');
+	walletDefinedByKeys.readAddressByIndex(wallet_id, 1, 0, function(objAddr){
+		if (objAddr)
+			return handleAddress(objAddr.address);
+		walletDefinedByKeys.issueAddress(wallet_id, 1, 0, function(objAddr){
+			handleAddress(objAddr.address);
+		});
+	});
+}
+
 function issueChangeAddressAndSendPayment(asset, amount, to_address, device_address, onDone){
 	if (conf.bSingleAddress){
 		readSingleAddress(function(change_address){
