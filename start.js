@@ -920,18 +920,6 @@ function issueChangeAddressAndSendPayment(asset, amount, to_address, device_addr
 	}
 }
 
-function getMyStatus(cb){
-	db.query("SELECT count(*) FROM units JOIN unit_authors USING(unit) where address=? and pow_type=1", [my_address], function(mine_rows){
-		db.query("SELECT sum(amount) FROM outputs JOIN units USING(unit) where pow_type=3 and address=?", [my_address], function(coinbase_rows){
-			Wallet.readBalance(wallet_id, function(balances) {
-				round.getCurrentRoundIndexByDb(function(round_index){
-					cb(null, {mine:mine_rows[0], coinbase:coinbase_rows[0], balance:balances, current_round:round_index})
-				})
-			});
-		})
-	})
-}
-
 /**
  * RPC APIs
  */
@@ -942,6 +930,18 @@ function initRPC() {
 	var balances = require('trustnote-pow-common/balances.js');
 	var mutex = require('trustnote-pow-common/mutex.js');
 	var storage = require('trustnote-pow-common/storage.js');
+
+	function getMyStatus(cb){
+		db.query("SELECT count(*) FROM units JOIN unit_authors USING(unit) where address=? and pow_type=1", [my_address], function(mine_rows){
+			db.query("SELECT sum(amount) FROM outputs JOIN units USING(unit) where pow_type=3 and address=?", [my_address], function(coinbase_rows){
+				Wallet.readBalance(wallet_id, function(balances) {
+					round.getCurrentRoundIndexByDb(function(round_index){
+						cb(null, {mine:mine_rows[0], coinbase:coinbase_rows[0], balance:balances, current_round:round_index})
+					})
+				});
+			})
+		})
+	}
 
 	var server = rpc.Server.$create({
 		'websocket': true, // is true by default
@@ -1194,10 +1194,10 @@ function initRPC() {
 		})
 	})
 
-	server.expose('unhandleJoints', function(args, opt, cb){
-		db.query('select * from unhandle_joints', function(rows) {
+	server.expose('unhandledJoints', function(args, opt, cb){
+		db.query('select * from unhandled_joints', function(rows) {
 			if(rows.length===0){
-				return cb('Not unhandle Joints')
+				return cb('No unhandled Joints')
 			} else {
 				return cb(JSON.stringify(rows))
 			}

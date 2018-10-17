@@ -180,7 +180,7 @@ return
 ]
 ```
 
-### unhandleJoints
+### unhandledJoints
 
 return
 
