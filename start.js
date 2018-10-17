@@ -226,7 +226,7 @@ function determineIfWalletExists(handleResult){
 	});
 }
 
-function signWithLocalPrivateKey(account, is_change, address_index, text_to_sign, handleSig){
+function signWithLocalPrivateKey(wallet_id, account, is_change, address_index, text_to_sign, handleSig){
 	var path = "m/44'/0'/" + account + "'/"+is_change+"/"+address_index;
 	var privateKey = xPrivKey.derive(path).privateKey;
 	var privKeyBuf = privateKey.bn.toBuffer({size:32}); // https://github.com/bitpay/bitcore-lib/issues/47
@@ -964,19 +964,6 @@ function initRPC() {
 					response.count_unhandled = rows[0].count_unhandled;
 					cb(null, response);
 				});
-			});
-		});
-	});
-
-	/**
-	 * Creates and returns new wallet address.
-	 * @return {String} address
-	 */
-	server.expose('getnewaddress', function(args, opt, cb) {
-		mutex.lock(['rpc_getnewaddress'], function(unlock){
-			walletDefinedByKeys.issueNextAddress(wallet_id, 0, function(addressInfo) {
-				unlock();
-				cb(null, addressInfo.address);
 			});
 		});
 	});
