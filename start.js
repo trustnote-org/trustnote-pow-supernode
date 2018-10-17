@@ -869,6 +869,26 @@ eventBus.on('headless_wallet_ready', function(){
 	})
 });
 
+function sendPayment(asset, amount, to_address, change_address, device_address, onDone){
+	var device = require('trustnote-pow-common/device.js');
+	var Wallet = require('trustnote-pow-common/wallet.js');
+	Wallet.sendPaymentFromWallet(
+		asset, wallet_id, to_address, amount, change_address,
+		[], device_address,
+		signWithLocalPrivateKey,
+		function(err, unit){
+			if (device_address) {
+				if (err)
+					device.sendMessageToDevice(device_address, 'text', "Failed to pay: " + err);
+				else
+				// if successful, the peer will also receive a payment notification
+					device.sendMessageToDevice(device_address, 'text', "paid");
+			}
+			if (onDone)
+				onDone(err, unit);
+		}
+	);
+}
 
 function issueChangeAddressAndSendPayment(asset, amount, to_address, device_address, onDone){
 	if (conf.bSingleAddress){
