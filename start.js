@@ -868,6 +868,11 @@ eventBus.on('headless_wallet_ready', function(){
 			})
 		});
 	})
+	
+	if(conf.bServeAsRpc){
+		var rpc_service = require('./lib/rpc_service.js');
+		eventBus.on('headless_wallet_ready', rpc_service.initRPC);
+	}
 });
 
 function sendPayment(asset, amount, to_address, change_address, device_address, onDone){
@@ -1269,9 +1274,3 @@ function infoCoinbaseReward(round_index, coinbaseReward){
 		console.info("");
 	}
 }
-
-if(conf.bServeAsRpc){
-	eventBus.on('headless_wallet_ready', initRPC);
-}
-
-exports.signer = signer;
