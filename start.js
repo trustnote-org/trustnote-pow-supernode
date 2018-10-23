@@ -2,7 +2,6 @@
 "use strict";
 var fs = require('fs');
 var crypto = require('crypto');
-var util = require('util');
 var Mnemonic = require('bitcore-mnemonic');
 var Bitcore = require('bitcore-lib');
 var readline = require('readline');
@@ -13,13 +12,13 @@ var objectHash = require('trustnote-pow-common/base/object_hash.js');
 var desktopApp = require('trustnote-pow-common/base/desktop_app.js');
 var db = require('trustnote-pow-common/db/db.js');
 var eventBus = require('trustnote-pow-common/base/event_bus.js');
-var ecdsaSig = require('trustnote-pow-common/encrypt/signature.js');
 var round = require('trustnote-pow-common/pow/round.js');
 var pow = require('trustnote-pow-common/pow/pow.js');
-var validationUtils = require("trustnote-pow-common/validation/validation_utils.js");
 
 require('./lib/relay.js');
 require('./lib/push.js');
+var logging = require('./lib/logging.js');
+var signer = require('./lib/signer.js');
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
@@ -29,41 +28,12 @@ var my_address;
 var bWitnessingUnderWay = false;
 var forcedWitnessingTimer;
 var count_witnessings_available = 0;
-
 var last_round_index = 0;
 var appDataDir = desktopApp.getAppDataDir();
 var KEYS_FILENAME = appDataDir + '/' + (conf.KEYS_FILENAME || 'keys.json');
 var wallet_id;
 var xPrivKey;
 var interval;
-
-
-function replaceConsoleLog(){
-	var log_filename = conf.LOG_FILENAME || (appDataDir + '/log.txt');
-	var writeStream = fs.createWriteStream(log_filename);
-	console.log('---------------');
-	console.log('From this point, output will be redirected to '+log_filename);
-	console.log("To release the terminal, type Ctrl-Z, then 'bg'");
-	console.log = function(){
-		writeStream.write(Date().toString()+': ');
-		writeStream.write(util.format.apply(null, arguments) + '\n');
-	};
-	// console.warn = console.log;
-	// console.info = console.log;
-}
-
-function replaceConsoleInfo(){
-	var log_filename = conf.LOG_FILENAME || (appDataDir + '/info.txt');
-	var writeStream = fs.createWriteStream(log_filename);
-	console.info = function(){
-		console.warn(util.format.apply(null, arguments));
-		writeStream.write(Date().toString()+': ');
-		writeStream.write(util.format.apply(null, arguments) + '\n');
-	};
-}
-
-
-// pow add
 var bMining = false; // if miner is mining
 var bPowSent = false; // if pow joint is sent
 
@@ -179,10 +149,6 @@ function createWallet(xPrivKey, onDone){
 	});
 }
 
-function isControlAddress(device_address){
-	return (conf.control_addresses && conf.control_addresses.indexOf(device_address) >= 0);
-}
-
 function readSingleAddress(handleAddress){
 	db.query("SELECT address FROM my_addresses WHERE wallet=?", [wallet_id], function(rows){
 		if (rows.length === 0)
@@ -190,22 +156,6 @@ function readSingleAddress(handleAddress){
 		if (rows.length > 1)
 			throw Error("more than 1 address");
 		handleAddress(rows[0].address);
-	});
-}
-
-function prepareBalanceText(handleBalanceText){
-	var Wallet = require('trustnote-pow-common/wallet/wallet.js');
-	Wallet.readBalance(wallet_id, function(assocBalances){
-		var arrLines = [];
-		for (var asset in assocBalances){
-			var total = assocBalances[asset].stable + assocBalances[asset].pending;
-			var units = (asset === 'base') ? ' bytes' : (' of ' + asset);
-			var line = total + units;
-			if (assocBalances[asset].pending)
-				line += ' (' + assocBalances[asset].pending + ' pending)';
-			arrLines.push(line);
-		}
-		handleBalanceText(arrLines.join("\n"));
 	});
 }
 
@@ -227,96 +177,8 @@ function determineIfWalletExists(handleResult){
 	});
 }
 
-function signWithLocalPrivateKey(wallet_id, account, is_change, address_index, text_to_sign, handleSig){
-	var path = "m/44'/0'/" + account + "'/"+is_change+"/"+address_index;
-	var privateKey = xPrivKey.derive(path).privateKey;
-	var privKeyBuf = privateKey.bn.toBuffer({size:32}); // https://github.com/bitpay/bitcore-lib/issues/47
-	handleSig(ecdsaSig.sign(text_to_sign, privKeyBuf));
-}
-
-var signer = {
-	readSigningPaths: function(conn, address, handleLengthsBySigningPaths){
-		handleLengthsBySigningPaths({r: constants.SIG_LENGTH});
-	},
-	readDefinition: function(conn, address, handleDefinition){
-		conn.query("SELECT definition FROM my_addresses WHERE address=?", [address], function(rows){
-			if (rows.length !== 1)
-				throw "definition not found";
-			handleDefinition(null, JSON.parse(rows[0].definition));
-		});
-	},
-	sign: function(objUnsignedUnit, assocPrivatePayloads, address, signing_path, handleSignature){
-		var buf_to_sign = objectHash.getUnitHashToSign(objUnsignedUnit);
-		db.query(
-			"SELECT wallet, account, is_change, address_index \n\
-			FROM my_addresses JOIN wallets USING(wallet) JOIN wallet_signing_paths USING(wallet) \n\
-			WHERE address=? AND signing_path=?",
-			[address, signing_path],
-			function(rows){
-				if (rows.length !== 1)
-					throw Error(rows.length+" indexes for address "+address+" and signing path "+signing_path);
-				var row = rows[0];
-				signWithLocalPrivateKey(wallet_id, row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
-					handleSignature(null, sig);
-				});
-			}
-		);
-	}
-};
-
-function handlePairing(from_address){
-	var device = require('trustnote-pow-common/wallet/device.js');
-	prepareBalanceText(function(balance_text){
-		device.sendMessageToDevice(from_address, 'text', balance_text);
-	});
-}
-
-function handleText(from_address, text){
-
-	text = text.trim();
-	var fields = text.split(/ /);
-	var command = fields[0].trim().toLowerCase();
-	var params =['',''];
-	if (fields.length > 1) params[0] = fields[1].trim();
-	if (fields.length > 2) params[1] = fields[2].trim();
-
-	var device = require('trustnote-pow-common/wallet/device.js');
-	switch(command){
-		case 'address':
-			readSingleAddress(function(address){
-				device.sendMessageToDevice(from_address, 'text', address);
-			});
-			break;
-
-		case 'balance':
-			prepareBalanceText(function(balance_text){
-				device.sendMessageToDevice(from_address, 'text', balance_text);
-			});
-			break;
-
-		default:
-				return device.sendMessageToDevice(from_address, 'text', "unrecognized command");
-	}
-}
-
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
-
-function setupChatEventHandlers(){
-	eventBus.on('paired', function(from_address){
-		console.log('paired '+from_address);
-		if (!isControlAddress(from_address))
-			return console.log('ignoring pairing from non-control address');
-		handlePairing(from_address);
-	});
-
-	eventBus.on('text', function(from_address, text){
-		console.log('text from '+from_address+': '+text);
-		if (!isControlAddress(from_address))
-			return console.log('ignoring text from non-control address');
-		handleText(from_address, text);
-	});
-}
 
 function witness(onDone){
 	function onError(){
@@ -353,7 +215,7 @@ function witness(onDone){
 							outputs: arrOutputs,
 							pow_type: constants.POW_TYPE_TRUSTME,
 							round_index: round_index,
-							signer: signer,
+							signer: signer.signer,
 							callbacks: callbacks
 						}
 						var timestamp = Date.now();
@@ -367,7 +229,7 @@ function witness(onDone){
 						params.messages = [objMessage];
 						return composer.composeJoint(params);
 					}
-					composer.composeTrustMEJoint(my_address, round_index, signer, callbacks);
+					composer.composeTrustMEJoint(my_address, round_index, signer.signer, callbacks);
 				});
 			})
 		})
@@ -579,7 +441,7 @@ function checkTrustMEAndStartMining(round_index){
 					}
 					else {
 						interval = Date.now()
-						infoStartMining(input_object);
+						logging.infoStartMining(input_object);
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
 								return onMiningError(err);
@@ -615,9 +477,9 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
 			if(objJoint.unit.messages[0].payload.outputs[0].amount)
-				infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.outputs[0].amount);
+				logging.infoCoinbaseReward(objJoint.unit.round_index, objJoint.unit.messages[0].payload.outputs[0].amount);
 			else
-				infoCoinbaseReward(objJoint.unit.round_index, 0);
+				logging.infoCoinbaseReward(objJoint.unit.round_index, 0);
 			console.log('=== Coinbase sent ===')
 		}
 	})
@@ -637,7 +499,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 									if(coinbase_amount===0){
 										return console.log("No coinbase earned")
 									}
-									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer, callbacks);
+									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer.signer, callbacks);
 								})
 							} else {
 								conn.release();
@@ -677,8 +539,8 @@ setTimeout(function(){
 					}, 1000);
 				require('trustnote-pow-common/wallet/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
 				eventBus.emit('headless_wallet_ready');
-				setTimeout(replaceConsoleLog, 1000);
-				setTimeout(replaceConsoleInfo, 1000);
+				setTimeout(logging.replaceConsoleLog, 1000);
+				setTimeout(logging.replaceConsoleInfo, 1000);
 				
 			});
 		});
@@ -702,7 +564,7 @@ eventBus.on('headless_wallet_ready', function(){
 		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
 		process.exit(1);
 	}
-	setupChatEventHandlers();
+
 	readSingleAddress(function(address){
 		my_address = address;
 		//checkAndWitness();
@@ -807,7 +669,7 @@ eventBus.on('headless_wallet_ready', function(){
 				bMining = false;
 				bPowSent = true;
 				network.broadcastJoint(objJoint);
-				infoMiningSuccess(JSON.stringify(objJoint.unit.round_index));
+				logging.infoMiningSuccess(JSON.stringify(objJoint.unit.round_index));
 				console.log('===Pow=== objJoin sent')
 			}
 		})
@@ -837,7 +699,7 @@ eventBus.on('headless_wallet_ready', function(){
 							bPowSent = true;
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
-						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer, callbacks)
+						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer.signer, callbacks)
 					})
 				});
 			})
@@ -849,74 +711,3 @@ eventBus.on('headless_wallet_ready', function(){
 		eventBus.on('headless_wallet_ready', rpc_service.initRPC);
 	}
 });
-
-function infoStartMining(miningInput){
-	console.info("------------------------Start Mining-------------------------");
-	console.info("        My Address: " + my_address);
-	console.info("       Round Index: " + miningInput.roundIndex);
-	console.info("        Difficulty: " + miningInput.difficulty);	
-	console.info("");
-}
-function infoMiningSuccess(round_index){
-	console.info("-----------------------Mining Success------------------------");
-	console.info("        My Address: " + my_address);
-	console.info("       Round Index: " + round_index);
-	console.info("");
-}
-function infoCoinbaseReward(round_index, coinbaseReward){
-	if (validationUtils.isValidAddress(my_address))
-		db.query("SELECT COUNT(*) AS count FROM my_addresses WHERE address = ?", [my_address], function(rows) {
-			if (rows[0].count)
-				db.query(
-					"SELECT asset, is_stable, SUM(amount) AS balance \n\
-					FROM outputs JOIN units USING(unit) \n\
-					WHERE is_spent=0 AND address=? AND sequence='good' AND asset IS NULL \n\
-					GROUP BY is_stable", [my_address],
-					function(rows) {
-						var balance = {
-							base: {
-								stable: 0,
-								pending: 0
-							}
-						};
-						for (var i = 0; i < rows.length; i++) {
-							var row = rows[i];
-							balance.base[row.is_stable ? 'stable' : 'pending'] = row.balance;
-						}
-						db.query(
-							"SELECT SUM(amount) AS coinbasebalance \n\
-							FROM outputs JOIN units USING(unit) \n\
-							WHERE is_spent=0 AND address=? AND sequence='good' \n\
-							AND asset IS NULL AND pow_type=?", [my_address, constants.POW_TYPE_COIN_BASE],
-							function(rowsCoinbase) {
-								if (rowsCoinbase.length ===1 && rowsCoinbase[0].coinbasebalance){
-									console.info("-----------------------Coinbase Reward-----------------------");
-									console.info("        My Address: " + my_address);
-									console.info("       Round Index: " + round_index);
-									console.info("   Coinbase Reward: " + coinbaseReward);
-									console.info("           Balance: " + JSON.stringify(balance.base));
-									console.info("Accumulated Reward: " + rowsCoinbase[0].coinbasebalance);
-									console.info("");
-								}
-								else{
-									console.info("-----------------------Coinbase Reward-----------------------");
-									console.info(" coinbase reward error: coinbase balance not found");
-									console.info("");
-								}
-							}
-						);
-						
-					}
-				);
-			else{
-				console.info("-----------------------Coinbase Reward-----------------------");
-				console.info(" coinbase reward error: address not found");
-				console.info("");
-			}
-		});
-	else {
-		console.info("-----------------------Coinbase Reward-----------------------");
-		console.info(" coinbase reward error: invalid address");
-		console.info("");
-	}
-}
