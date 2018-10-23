@@ -49,4 +49,6 @@ exports.maxWorkderCount = 0;
 
 exports.KEYS_FILENAME = 'keys.json';
 
+exports.SUPERNODE_SAFE_ADDRESS = null;
+
 console.log('finished witness conf');
