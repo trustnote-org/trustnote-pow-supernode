@@ -699,7 +699,7 @@ eventBus.on('headless_wallet_ready', function(){
 							bPowSent = true;
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
-						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.difficulty, {hash:solution["hash"],nonce:solution["nonce"]}, signer.signer, callbacks)
+						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.bits, {hash:solution["hash"],nonce:solution["nonce"]}, signer.signer, callbacks)
 					})
 				});
 			})
