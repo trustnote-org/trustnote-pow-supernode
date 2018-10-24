@@ -446,7 +446,7 @@ function checkTrustMEAndStartMining(round_index){
 							if (err) {
 								return onMiningError(err);
 							} else {
-								console.log("Mining Finished");
+								console.log("Mining is on going");
 							}
 						})
 					}
@@ -653,11 +653,16 @@ eventBus.on('headless_wallet_ready', function(){
 		checkTrustMEAndStartMining(round_index)
 	})
 	
-	eventBus.on("pow_mined_gift", function(solution){
+	eventBus.on("pow_mined_gift", function(err, solution){
+		if(err) {
+			return onMiningError(err);
+		}
+
 		if(my_address == constants.FOUNDATION_ADDRESS) {
 			bMining = false;
 			return console.log('Foundation will not mine');
 		}
+		
 		var gap = Date.now() - interval;
 		console.log(`===POW cost: ${gap} ms===`)
 		console.log('===Will compose POW joint===');
