@@ -5,8 +5,12 @@ console.log('Unittest : create miner deposit address\n==================\n')
 
 eventBus.on('headless_wallet_ready', function(){
     var createMinerDepositAddress = require('../lib/create_deposit_address.js');
+    var db = require('trustnote-pow-common/db/db.js');
 
-    createMinerDepositAddress.createMinerDepositAddress('RV5KBMMUBQKG6EKRSKLFOSJOMVBUFOHU', 1000, function(shared_address){
-        console.log(JSON.stringify(shared_address));
+    db.query('SELECT * from my_addresses', [], function(rows) {
+        var my_addresses = rows[0].address;
+        createMinerDepositAddress.createMinerDepositAddress(my_addresses, 1000, function(shared_address){
+            console.log(JSON.stringify(shared_address));
+        })
     })
 })
