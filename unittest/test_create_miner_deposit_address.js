@@ -1,6 +1,8 @@
 require('../start.js');
 var eventBus = require('trustnote-pow-common/base/event_bus');
 
+console.log('Unittest : create miner deposit address\n==================\n')
+
 eventBus.on('headless_wallet_ready', function(){
     var createMinerDepositAddress = require('../lib/create_deposit_address.js');
 
