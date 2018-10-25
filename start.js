@@ -276,7 +276,7 @@ function checkAndWitness(){
 										witness(function(){
 											bWitnessingUnderWay = false;
 										});
-									}, Math.round(Math.random()*3000));
+									}, Math.round(Math.random()*2000));
 								} else {
 									bWitnessingUnderWay = false;
 									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
@@ -327,7 +327,7 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 		function(rows){
 			if (rows.length === 0)
 				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*10000);
+			var timeout = Math.round((distance_to_threshold + Math.random())*7000);
 			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
 		}
