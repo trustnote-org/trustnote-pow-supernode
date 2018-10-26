@@ -14,7 +14,7 @@ var pow = require('trustnote-pow-common/pow/pow.js');
 require('./lib/relay.js');
 require('./lib/push.js');
 var logging = require('./lib/logging.js');
-var signer = require('./lib/signer.js');
+var wallet = require('./lib/wallet.js');
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
@@ -100,7 +100,7 @@ function witness(onDone){
 							outputs: arrOutputs,
 							pow_type: constants.POW_TYPE_TRUSTME,
 							round_index: round_index,
-							signer: signer.signer,
+							signer: wallet.signer,
 							callbacks: callbacks
 						}
 						var timestamp = Date.now();
@@ -114,7 +114,7 @@ function witness(onDone){
 						params.messages = [objMessage];
 						return composer.composeJoint(params);
 					}
-					composer.composeTrustMEJoint(my_address, round_index, signer.signer, callbacks);
+					composer.composeTrustMEJoint(my_address, round_index, wallet.signer, callbacks);
 				});
 			})
 		})
@@ -384,7 +384,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 									if(coinbase_amount===0){
 										return console.log("No coinbase earned")
 									}
-									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, signer.signer, callbacks);
+									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, wallet.signer, callbacks);
 								})
 							} else {
 								conn.release();
@@ -402,7 +402,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 }
 
 setTimeout(function(){
-	signer.readKeys(function(mnemonic_phrase, passphrase){
+	wallet.readKeys(function(mnemonic_phrase, passphrase){
 		var mnemonic = new Mnemonic(mnemonic_phrase);
 		// global
 		xPrivKey = mnemonic.toHDPrivateKey(passphrase);
@@ -589,7 +589,7 @@ eventBus.on('headless_wallet_ready', function(){
 							bPowSent = true;
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
-						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.bits, {hash:solution["hash"],nonce:solution["nonce"]}, signer.signer, callbacks)
+						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.bits, {hash:solution["hash"],nonce:solution["nonce"]}, wallet.signer, callbacks)
 					})
 				});
 			})
