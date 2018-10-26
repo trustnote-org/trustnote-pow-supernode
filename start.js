@@ -39,7 +39,7 @@ function onError(err){
 function onMiningError(err){
 	// throw Error(err);
 	bMining = false;
-	console.log("Mining Error: " + err);
+	console.log("Mining Error: " + JSON.stringify(err));
 }
 
 function readSingleAddress(handleAddress){
