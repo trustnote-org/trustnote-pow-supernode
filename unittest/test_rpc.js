@@ -12,12 +12,26 @@ let rpcClient = function(ip, api, params, callback) {
     })
 }
 
-rpcClient(ip, 'getinfo', null, function(result) {
-    console.log(`IP: ${ ip }, result: ${ result }\n`)
+// rpcClient(ip, 'getinfo', null, function(result) {
+//     console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
+//     if(result) {
+//         console.log(`IP: ${ ip }, result:
+// last_mci ${ result.last_mci },
+// last_stable_mci ${ result.last_stable_mci },
+// count_unhandled ${ result.count_unhandled }\n`)
+//     }
+// })
+
+// rpcClient(ip, 'unhandledJoints', null, function(result) {
+//     console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
+//     if(result) {
+//         console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }`)
+//     }
+// })
+
+rpcClient(ip, 'sendpaymentfromdepositaddress', ['W3BAX3ECVSEQNMO7BJDMOUUEML4JO5Q3', 100000000], function(result) {
+    console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
     if(result) {
-        console.log(`IP: ${ ip }, result:
-last_mci ${ result.last_mci },
-last_stable_mci ${ result.last_stable_mci },
-count_unhandled ${ result.count_unhandled }\n`)
+        console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }`)
     }
 })
