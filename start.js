@@ -384,7 +384,11 @@ function checkRoundAndComposeCoinbase(round_index) {
 									if(coinbase_amount===0){
 										return console.log("No coinbase earned")
 									}
-									composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, wallet.signer, callbacks);
+									if(conf.safe_address){
+										composer.composeCoinbaseJoint(conf.safe_address, round_index, coinbase_amount, wallet.signer, callbacks);
+									} else {
+										composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, wallet.signer, callbacks);
+									}
 								})
 							} else {
 								conn.release();
@@ -423,6 +427,9 @@ setTimeout(function(){
 						process.exit(0);
 					}, 1000);
 				require('trustnote-pow-common/wallet/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
+				if( !conf.safe_address ) {
+					console.log('## We recommend you to set a safe address for your coin\'s safty where your coinbase rewards will be sent to.\nOther wise, the rewards will be sent to your supernode address');
+				}
 				eventBus.emit('headless_wallet_ready');
 				setTimeout(logging.replaceConsoleLog, 1000);
 				setTimeout(logging.replaceConsoleInfo, 1000);
