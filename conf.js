@@ -29,15 +29,14 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://test.mainchain.pow.trustnote.org:9191",
+    "ws://10.10.10.120:9191",
 ];
 
 exports.storage = 'sqlite';
 
 exports.deviceName = 'Supernode';
 exports.permanent_pairing_secret = 'randomstring';
-exports.control_addresses = ['DEVICE ALLOWED TO CHAT'];
-exports.payout_address = 'WHERE THE MONEY CAN BE SENT TO';
+exports.safe_address = null;
 
 exports.bSingleAddress = true;
 exports.THRESHOLD_DISTANCE = 7;
@@ -48,7 +47,5 @@ exports.start_mining_round = 0;
 exports.maxWorkderCount = 0;
 
 exports.KEYS_FILENAME = 'keys.json';
-
-exports.SUPERNODE_SAFE_ADDRESS = null;
 
 console.log('finished witness conf');
