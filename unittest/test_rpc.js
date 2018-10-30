@@ -23,6 +23,10 @@ rpcClient(ip, 'unhandledJoints', null, function(result) {
     console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
 })
 
+rpcClient(ip, 'createMinerAddress', [100000], function(result) {
+    console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
+})
+
 // rpcClient(ip, 'sendpaymentfromdepositaddress', ['W3BAX3ECVSEQNMO7BJDMOUUEML4JO5Q3', 100000000], function(result) {
 //     console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
 // })
