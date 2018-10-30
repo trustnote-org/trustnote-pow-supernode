@@ -605,6 +605,6 @@ eventBus.on('headless_wallet_ready', function(){
 	
 	if(conf.bServeAsRpc){
 		var rpc_service = require('./lib/rpc_service.js');
-		eventBus.on('headless_wallet_ready', rpc_service.initRPC);
+		rpc_service.initRPC();
 	}
 });
