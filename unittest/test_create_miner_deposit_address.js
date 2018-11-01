@@ -9,7 +9,7 @@ eventBus.on('headless_wallet_ready', function(){
 
     db.query('SELECT * from my_addresses', [], function(rows) {
         var my_addresses = rows[0].address;
-        createMinerDepositAddress.createMinerDepositAddress(my_addresses, 1000, function(shared_address){
+        createMinerDepositAddress.createMinerDepositAddress(my_addresses, 50000000, function(shared_address){
             console.log(JSON.stringify(shared_address));
         })
     })
