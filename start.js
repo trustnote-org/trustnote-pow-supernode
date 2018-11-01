@@ -255,7 +255,7 @@ var signer = {
 				if (rows.length !== 1)
 					throw Error(rows.length+" indexes for address "+address+" and signing path "+signing_path);
 				var row = rows[0];
-				signWithLocalPrivateKey(row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
+				signWithLocalPrivateKey(wallet_id, row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
 					handleSignature(null, sig);
 				});
 			}
