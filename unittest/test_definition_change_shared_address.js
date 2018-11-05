@@ -1,12 +1,6 @@
 require("../start");
 var eventBus = require("trustnote-pow-common/base/event_bus");
-var conf = require("trustnote-pow-common/config/conf");
 var objectHash = require('trustnote-pow-common/base/object_hash.js');
-var constants = require('trustnote-pow-common/config/constants');
-
-function onError(err) {
-    throw Error(err)
-}
 
 eventBus.on('headless_wallet_ready', function(){
     var headless = require('../lib/wallet')
@@ -14,7 +8,7 @@ eventBus.on('headless_wallet_ready', function(){
 
     wallet.sendMultiPayment({
         wallet: '4b8fWkZSYYiaVrpvY9fFGF+9XoIhy614twyR3+BM7Zg=',
-        arrPayingAddresses: 'FGGWZMAFSSH5GNVRTP73NAW6N2MCTSFY',
+        arrPayingAddresses: ['FGGWZMAFSSH5GNVRTP73NAW6N2MCTSFY'],
         to_address: 'W3BAX3ECVSEQNMO7BJDMOUUEML4JO5Q3',
         amount: 2000,
         change_address:'W3BAX3ECVSEQNMO7BJDMOUUEML4JO5Q3',
