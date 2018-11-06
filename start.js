@@ -10,6 +10,7 @@ var db = require('trustnote-pow-common/db/db.js');
 var eventBus = require('trustnote-pow-common/base/event_bus.js');
 var round = require('trustnote-pow-common/pow/round.js');
 var pow = require('trustnote-pow-common/pow/pow.js');
+var deposit = require('trustnote-pow-common/sc/deposit');
 
 require('./lib/relay.js');
 require('./lib/push.js');
@@ -589,14 +590,21 @@ eventBus.on('headless_wallet_ready', function(){
 						return console.log('POW already sent');
 					}
 					conn.query("SELECT count(*) as count from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
-						conn.release()
 						console.log(`Mining POW :${rows[0].count}`)
 						if(rows[0].count >= 8) {
 							bMining = false;
 							bPowSent = true;
+							conn.release()
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
-						composer.composePowJoint(my_address, round_index, solution.publicSeed, solution.bits, {hash:solution["hash"],nonce:solution["nonce"]}, wallet.signer, callbacks)
+						var address = conf.safe_address ? conf.safe_address : my_address
+						deposit.getDepositAddressBySupernode(conn, address, function(err, deposit_address){
+							conn.release()
+							if(err) {
+								return onMiningError(err)
+							}
+							composer.composePowJoint(my_address, round_index, solution.publicSeed, deposit_address, {hash:solution.hash, selfBits:solution.selfBits, nonce:solution.nonce}, wallet.signer, callbacks)
+						})
 					})
 				});
 			})
