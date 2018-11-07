@@ -30,3 +30,7 @@ rpcClient(ip, 'getinfo', null, function(result) {
 // rpcClient(ip, 'sendpaymentfromdepositaddress', ['W3BAX3ECVSEQNMO7BJDMOUUEML4JO5Q3', 100000000], function(result) {
 //     console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
 // })
+
+rpcClient(ip, 'sendpaymentfromdepositaddress', ['7VZJRD3IZXP3HS453IWPEKYAB4262RC3',1000], function(result) {
+    console.log(`IP: ${ ip }, result: ${ JSON.stringify(result) }\n`)
+})
