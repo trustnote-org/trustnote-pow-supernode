@@ -536,7 +536,7 @@ eventBus.on('headless_wallet_ready', function(){
 
 	setInterval(function(){
 		console.log(`Mining Status: ${bMining}, POW Status: ${bPowSent}  ready to checkTrustMEAndStartMinig`)
-		round.getCurrentRoundIndexByDb(function(round_index){
+		round.getCurrentRoundIndex(null, function(round_index){
 			checkRoundAndComposeCoinbase(round_index);
 			checkTrustMEAndStartMining(round_index);
 		})
