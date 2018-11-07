@@ -598,7 +598,7 @@ eventBus.on('headless_wallet_ready', function(){
 							return console.log('There is already more than 8 pow joints, will not compose another one')
 						}
 						var address = conf.safe_address ? conf.safe_address : my_address
-						deposit.getDepositAddressBySupernode(conn, address, function(err, deposit_address){
+						deposit.getDepositAddressBySafeAddress(conn, address, function(err, deposit_address){
 							conn.release()
 							if(err) {
 								return onMiningError(err)
