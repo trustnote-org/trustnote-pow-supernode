@@ -386,9 +386,9 @@ function checkRoundAndComposeCoinbase(round_index) {
 										return console.log("No coinbase earned")
 									}
 									if(conf.coinbase_address){
-										composer.composeCoinbaseJoint(conf.coinbase_address, round_index, coinbase_amount, wallet.signer, callbacks);
+										composer.composeCoinbaseJoint(my_address, conf.coinbase_address, round_index, coinbase_amount, wallet.signer, callbacks);
 									} else {
-										composer.composeCoinbaseJoint(my_address, round_index, coinbase_amount, wallet.signer, callbacks);
+										composer.composeCoinbaseJoint(my_address, my_address, round_index, coinbase_amount, wallet.signer, callbacks);
 									}
 								})
 							} else {
