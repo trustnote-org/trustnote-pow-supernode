@@ -11,11 +11,11 @@ var eventBus = require('trustnote-pow-common/base/event_bus.js');
 var round = require('trustnote-pow-common/pow/round.js');
 var pow = require('trustnote-pow-common/pow/pow.js');
 var deposit = require('trustnote-pow-common/sc/deposit');
+var supernode = require('trustnote-pow-common/wallet/supernode');
 
 require('./lib/relay.js');
 require('./lib/push.js');
 var logging = require('./lib/logging.js');
-var wallet = require('./lib/wallet.js');
 
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
@@ -63,89 +63,6 @@ function readSingleWallet(handleWallet){
 	});
 }
 
-<<<<<<< HEAD
-function determineIfWalletExists(handleResult){
-	db.query("SELECT wallet FROM wallets", function(rows){
-		if (rows.length > 1)
-			throw Error("more than 1 wallet");
-		handleResult(rows.length > 0);
-	});
-}
-
-function signWithLocalPrivateKey(wallet_id, account, is_change, address_index, text_to_sign, handleSig){
-	var path = "m/44'/0'/" + account + "'/"+is_change+"/"+address_index;
-	var privateKey = xPrivKey.derive(path).privateKey;
-	var privKeyBuf = privateKey.bn.toBuffer({size:32}); // https://github.com/bitpay/bitcore-lib/issues/47
-	handleSig(ecdsaSig.sign(text_to_sign, privKeyBuf));
-}
-
-var signer = {
-	readSigningPaths: function(conn, address, handleLengthsBySigningPaths){
-		handleLengthsBySigningPaths({r: constants.SIG_LENGTH});
-	},
-	readDefinition: function(conn, address, handleDefinition){
-		conn.query("SELECT definition FROM my_addresses WHERE address=?", [address], function(rows){
-			if (rows.length !== 1)
-				throw "definition not found";
-			handleDefinition(null, JSON.parse(rows[0].definition));
-		});
-	},
-	sign: function(objUnsignedUnit, assocPrivatePayloads, address, signing_path, handleSignature){
-		var buf_to_sign = objectHash.getUnitHashToSign(objUnsignedUnit);
-		db.query(
-			"SELECT wallet, account, is_change, address_index \n\
-			FROM my_addresses JOIN wallets USING(wallet) JOIN wallet_signing_paths USING(wallet) \n\
-			WHERE address=? AND signing_path=?",
-			[address, signing_path],
-			function(rows){
-				if (rows.length !== 1)
-					throw Error(rows.length+" indexes for address "+address+" and signing path "+signing_path);
-				var row = rows[0];
-				signWithLocalPrivateKey(wallet_id, row.account, row.is_change, row.address_index, buf_to_sign, function(sig){
-					handleSignature(null, sig);
-				});
-			}
-		);
-	}
-};
-
-function handlePairing(from_address){
-	var device = require('trustnote-pow-common/device.js');
-	prepareBalanceText(function(balance_text){
-		device.sendMessageToDevice(from_address, 'text', balance_text);
-	});
-}
-
-function handleText(from_address, text){
-
-	text = text.trim();
-	var fields = text.split(/ /);
-	var command = fields[0].trim().toLowerCase();
-	var params =['',''];
-	if (fields.length > 1) params[0] = fields[1].trim();
-	if (fields.length > 2) params[1] = fields[2].trim();
-
-	var device = require('trustnote-pow-common/device.js');
-	switch(command){
-		case 'address':
-			readSingleAddress(function(address){
-				device.sendMessageToDevice(from_address, 'text', address);
-			});
-			break;
-
-		case 'balance':
-			prepareBalanceText(function(balance_text){
-				device.sendMessageToDevice(from_address, 'text', balance_text);
-			});
-			break;
-
-		default:
-				return device.sendMessageToDevice(from_address, 'text', "unrecognized command");
-	}
-}
-
-=======
->>>>>>> beta1
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
@@ -184,7 +101,7 @@ function witness(onDone){
 							outputs: arrOutputs,
 							pow_type: constants.POW_TYPE_TRUSTME,
 							round_index: round_index,
-							signer: wallet.signer,
+							signer: supernode.signer,
 							callbacks: callbacks
 						}
 						var timestamp = Date.now();
@@ -198,7 +115,7 @@ function witness(onDone){
 						params.messages = [objMessage];
 						return composer.composeJoint(params);
 					}
-					composer.composeTrustMEJoint(my_address, round_index, wallet.signer, callbacks);
+					composer.composeTrustMEJoint(my_address, round_index, supernode.signer, callbacks);
 				});
 			})
 		})
@@ -469,9 +386,9 @@ function checkRoundAndComposeCoinbase(round_index) {
 										return console.log("No coinbase earned")
 									}
 									if(conf.coinbase_address){
-										composer.composeCoinbaseJoint(my_address, conf.coinbase_address, round_index, coinbase_amount, wallet.signer, callbacks);
+										composer.composeCoinbaseJoint(my_address, conf.coinbase_address, round_index, coinbase_amount, supernode.signer, callbacks);
 									} else {
-										composer.composeCoinbaseJoint(my_address, my_address, round_index, coinbase_amount, wallet.signer, callbacks);
+										composer.composeCoinbaseJoint(my_address, my_address, round_index, coinbase_amount, supernode.signer, callbacks);
 									}
 								})
 							} else {
@@ -490,7 +407,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 }
 
 setTimeout(function(){
-	wallet.readKeys(function(mnemonic_phrase, passphrase){
+	supernode.readKeys(function(mnemonic_phrase, passphrase){
 		var mnemonic = new Mnemonic(mnemonic_phrase);
 		// global
 		xPrivKey = mnemonic.toHDPrivateKey(passphrase);
@@ -510,7 +427,7 @@ setTimeout(function(){
 						console.log('passphrase is incorrect');
 						process.exit(0);
 					}, 1000);
-				require('trustnote-pow-common/wallet/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
+				require('trustnote-pow-common/wallet/supernode.js'); // we don't need any of its functions but it listens for hub/* messages
 				if( !conf.safe_address ) {
 					console.log('## We recommend you to set a safe address for your coin\'s safty where your coinbase rewards will be sent to.\nOther wise, the rewards will be sent to your supernode address');
 				}
@@ -686,7 +603,7 @@ eventBus.on('headless_wallet_ready', function(){
 							if(err) {
 								return onMiningError(err)
 							}
-							composer.composePowJoint(my_address, round_index, solution.publicSeed, deposit_address, {hash:solution.hash, selfBits:solution.selfBits, nonce:solution.nonce}, wallet.signer, callbacks)
+							composer.composePowJoint(my_address, round_index, solution.publicSeed, deposit_address, {hash:solution.hash, selfBits:solution.selfBits, nonce:solution.nonce}, supernode.signer, callbacks)
 						})
 					})
 				});
