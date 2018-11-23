@@ -29,18 +29,18 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://test.mainchain.pow.trustnote.org:9191",
+    "ws://10.10.10.120:9191",
 ];
 
 exports.storage = 'sqlite';
 
 exports.deviceName = 'Supernode';
 exports.permanent_pairing_secret = 'randomstring';
-exports.control_addresses = ['DEVICE ALLOWED TO CHAT'];
-exports.payout_address = 'WHERE THE MONEY CAN BE SENT TO';
+exports.safe_address = null;
+exports.coinbase_address = null;
 
 exports.bSingleAddress = true;
-exports.THRESHOLD_DISTANCE = 7;
+exports.THRESHOLD_DISTANCE = 6;
 exports.MIN_AVAILABLE_WITNESSINGS = 100;
 exports.bPostTimestamp = false;
 

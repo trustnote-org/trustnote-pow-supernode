@@ -11,14 +11,6 @@ return
   count_unhandled: {Integer} 
 }
  ```
- 
-### getnewaddress
-
-return
-
-```
-{String} address
-```
 
 ### getalladdress
 
@@ -124,6 +116,14 @@ return
 {String} status
 ```
 
+### getCycleInfo
+
+return
+
+```
+{String}
+```
+
 ### getRoundInfo
 
 return
@@ -193,4 +193,32 @@ return
     'creation_date': {String}
   }
 ]
+```
+### createMinerAddress
+
+param
+
+```
+{Integer} amount
+```
+
+return
+
+```
+{String} Miner Address
+```
+
+#### sendpaymentfromdepositaddress
+
+param
+
+```
+{String} to address
+{Integer} amount
+```
+
+return
+
+```
+{String} unit
 ```
