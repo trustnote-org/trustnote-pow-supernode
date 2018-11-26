@@ -165,6 +165,7 @@ function checkAndWitness(){
 									}, Math.round(Math.random()*2000));
 								} else {
 									bWitnessingUnderWay = false;
+									console.log('distance not meet threshold, will try witness in random delay');
 									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
 								}
 							}
@@ -211,8 +212,11 @@ function checkForUnconfirmedUnits(distance_to_threshold){
 		LIMIT 1",
 		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
 		function(rows){
-			if (rows.length === 0)
+			if (rows.length === 0){
+				console.log('checkForUnconfirmedUnits return 0, will not witness now');
 				return;
+			}
+				
 			var timeout = Math.round((distance_to_threshold + Math.random())*7000);
 			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
 			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
