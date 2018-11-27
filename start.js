@@ -43,26 +43,6 @@ function onMiningError(err){
 	console.log("Mining Error: " + JSON.stringify(err));
 }
 
-function readSingleAddress(handleAddress){
-	db.query("SELECT address FROM my_addresses WHERE wallet=?", [wallet_id], function(rows){
-		if (rows.length === 0)
-			throw Error("no addresses");
-		if (rows.length > 1)
-			throw Error("more than 1 address");
-		handleAddress(rows[0].address);
-	});
-}
-
-function readSingleWallet(handleWallet){
-	db.query("SELECT wallet FROM wallets", function(rows){
-		if (rows.length === 0)
-			throw Error("no wallets");
-		if (rows.length > 1)
-			throw Error("more than 1 wallet");
-		handleWallet(rows[0].wallet);
-	});
-}
-
 // The below events can arrive only after we read the keys and connect to the hub.
 // The event handlers depend on the global var wallet_id being set, which is set after reading the keys
 
@@ -413,7 +393,7 @@ setTimeout(function(){
 		xPrivKey = mnemonic.toHDPrivateKey(passphrase);
 		var devicePrivKey = xPrivKey.derive("m/1'").privateKey.bn.toBuffer({size:32});
 		// read the id of the only wallet
-		readSingleWallet(function(wallet){
+		supernode.readSingleWallet(db, function(wallet){
 			// global
 			wallet_id = wallet;
 			var device = require('trustnote-pow-common/wallet/device.js');
@@ -446,6 +426,7 @@ setTimeout(function(){
 eventBus.on('headless_wallet_ready', function(){
 	var network = require('trustnote-pow-common/p2p/network.js');
 	var composer = require('trustnote-pow-common/unit/composer.js');
+	var supernode = require('trustnote-pow-common/wallet/supernode');
 	
 	if (conf.permanent_pairing_secret)
 		db.query(
@@ -458,7 +439,7 @@ eventBus.on('headless_wallet_ready', function(){
 		process.exit(1);
 	}
 
-	readSingleAddress(function(address){
+	supernode.readSingleAddress(db, function(address){
 		my_address = address;
 		//checkAndWitness();
 		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
