@@ -544,7 +544,7 @@ eventBus.on('headless_wallet_ready', function(){
 			checkRoundAndComposeCoinbase(round_index);
 			checkTrustMEAndStartMining(round_index);
 		})
-		db.query("select * from units join unit_authors where address=? sequence = 'final-bad'", [my_address], function(rows){
+		db.query("select * from units join unit_authors where address=? AND sequence = 'final-bad'", [my_address], function(rows){
 			if(rows.length>=1){
 				bMining = true;
 				console.log('YOU ALREADY HAVE BAD JOINT')
