@@ -4,7 +4,6 @@ var Mnemonic = require('bitcore-mnemonic');
 
 var constants = require('trustnote-pow-common/config/constants.js');
 var conf = require('trustnote-pow-common/config/conf.js');
-var objectHash = require('trustnote-pow-common/base/object_hash.js');
 var desktopApp = require('trustnote-pow-common/base/desktop_app.js');
 var db = require('trustnote-pow-common/db/db.js');
 var eventBus = require('trustnote-pow-common/base/event_bus.js');
@@ -12,6 +11,7 @@ var round = require('trustnote-pow-common/pow/round.js');
 var pow = require('trustnote-pow-common/pow/pow.js');
 var deposit = require('trustnote-pow-common/sc/deposit');
 var supernode = require('trustnote-pow-common/wallet/supernode');
+var byzatine = require('trustnote-pow-common/mc/byzantine');
 
 require('./lib/relay.js');
 require('./lib/push.js');
@@ -20,15 +20,10 @@ var logging = require('./lib/logging.js');
 if (!conf.bSingleAddress)
 	throw Error('witness must be single address');
 
-var WITNESSING_COST = 600; // size of typical witnessing unit
 var my_address;
-var bWitnessingUnderWay = false;
-var forcedWitnessingTimer;
-var count_witnessings_available = 0;
 var last_round_index = 0;
 var wallet_id;
 var xPrivKey;
-var interval;
 var bMining = false; // if miner is mining
 var bPowSent = false; // if pow joint is sent
 
@@ -41,243 +36,6 @@ function onMiningError(err){
 	// throw Error(err);
 	bMining = false;
 	console.log("Mining Error: " + JSON.stringify(err));
-}
-
-// The below events can arrive only after we read the keys and connect to the hub.
-// The event handlers depend on the global var wallet_id being set, which is set after reading the keys
-
-function witness(onDone){
-	function onError(){
-		// notifyAdminAboutFailedWitnessing(err);
-		setTimeout(onDone, 60000); // pause after error
-	}
-	var network = require('trustnote-pow-common/p2p/network.js');
-	var composer = require('trustnote-pow-common/unit/composer.js');
-	if (!network.isConnected()){
-		console.log('not connected, skipping');
-		return onDone();
-	}
-
-	const callbacks = composer.getSavingCallbacks({
-		ifNotEnoughFunds: onError,
-		ifError: onError,
-		ifOk: function(objJoint){
-			network.broadcastJoint(objJoint);
-			onDone();
-		}
-	})
-	db.takeConnectionFromPool(function(conn){
-		round.getCurrentRoundIndex(conn, function(round_index){
-			determineIfIAmWitness(conn, round_index, function(bWitness){
-				conn.release()
-				if(!bWitness) {
-					bWitnessingUnderWay = false;
-					return console.log('I am not an attestor for now')
-				}
-				createOptimalOutputs(function(arrOutputs){
-					if (conf.bPostTimestamp) {
-						var params = {
-							paying_addresses: [my_address],
-							outputs: arrOutputs,
-							pow_type: constants.POW_TYPE_TRUSTME,
-							round_index: round_index,
-							signer: supernode.signer,
-							callbacks: callbacks
-						}
-						var timestamp = Date.now();
-						var datafeed = {timestamp: timestamp};
-						var objMessage = {
-							app: "data_feed",
-							payload_location: "inline",
-							payload_hash: objectHash.getBase64Hash(datafeed),
-							payload: datafeed
-						};
-						params.messages = [objMessage];
-						return composer.composeJoint(params);
-					}
-					composer.composeTrustMEJoint(my_address, round_index, supernode.signer, callbacks);
-				});
-			})
-		})
-	})
-}
-
-
-function checkAndWitness(){
-	var storage = require('trustnote-pow-common/db/storage.js');
-	console.log('checkAndWitness');
-	clearTimeout(forcedWitnessingTimer);
-	if (bWitnessingUnderWay)
-		return console.log('witnessing under way');
-	bWitnessingUnderWay = true;
-	// abort if there are my units without an mci
-	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
-		if (bMyUnitsWithoutMci){
-			bWitnessingUnderWay = false;
-			return console.log('my units without mci');
-		}
-		// pow add
-		db.takeConnectionFromPool(function(conn){
-			round.getCurrentRoundIndex(conn, function(round_index){
-				determineIfIAmWitness(conn, round_index, function(bWitness){
-					conn.release()
-					// pow add
-					console.log('CheckIfIamWitnessRound:'+round_index)
-					if (!bWitness){
-						bWitnessingUnderWay = false;
-						return console.log('I am not an attestor for now')
-					}
-					storage.readLastMainChainIndex(function(max_mci){
-						let col = (conf.storage === 'mysql') ? 'main_chain_index' : 'unit_authors.rowid';
-						db.query(
-							"SELECT main_chain_index AS max_my_mci, "+db.getUnixTimestamp('creation_date')+" AS last_ts \n\
-							FROM units JOIN unit_authors USING(unit) WHERE +address=? ORDER BY "+col+" DESC LIMIT 1", 
-							[my_address],
-							function(rows){
-								var max_my_mci = (rows.length > 0) ? rows[0].max_my_mci : -1000;
-								var distance = max_mci - max_my_mci;
-								if (distance > conf.THRESHOLD_DISTANCE){
-									console.log('distance above threshold, will witness');
-									setTimeout(function(){
-										witness(function(){
-											bWitnessingUnderWay = false;
-										});
-									}, Math.round(Math.random()*2000));
-								} else {
-									bWitnessingUnderWay = false;
-									checkForUnconfirmedUnits(conf.THRESHOLD_DISTANCE - distance);
-								}
-							}
-						);
-					});
-				});
-			})
-		})
-	});
-}
-
-// pow add
-function determineIfIAmWitness(conn, round_index, handleResult){
-	round.getWitnessesByRoundIndex(conn, round_index, function(arrWitnesses){
-		conn.query(
-			"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
-				if(rows.length===0) {
-					return handleResult(false)
-				}
-				return handleResult(true)
-			}
-		)
-	})
-}
-
-function determineIfThereAreMyUnitsWithoutMci(handleResult){
-	db.query("SELECT 1 FROM units JOIN unit_authors USING(unit) WHERE address=? AND main_chain_index IS NULL LIMIT 1", [my_address], function(rows){
-		handleResult(rows.length > 0);
-	});
-}
-
-function checkForUnconfirmedUnits(distance_to_threshold){
-	var storage = require('trustnote-pow-common/db/storage.js');
-	db.query( // look for unstable non-witness-authored units
-		// pow modi
-		"SELECT 1 FROM units CROSS JOIN unit_authors USING(unit)\n\
-		WHERE (main_chain_index>? OR main_chain_index IS NULL AND sequence='good') \n\
-			AND NOT ( \n\
-				(SELECT COUNT(*) FROM messages WHERE messages.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit)=1 \n\
-				AND (SELECT COUNT(DISTINCT address) FROM outputs WHERE outputs.unit=units.unit)=1 \n\
-				AND (SELECT address FROM outputs WHERE outputs.unit=units.unit LIMIT 1)=unit_authors.address \n\
-			) \n\
-		LIMIT 1",
-		[storage.getMinRetrievableMci()], // light clients see all retrievable as unconfirmed
-		function(rows){
-			if (rows.length === 0)
-				return;
-			var timeout = Math.round((distance_to_threshold + Math.random())*7000);
-			console.log('scheduling unconditional witnessing in '+timeout+' ms unless a new unit arrives');
-			forcedWitnessingTimer = setTimeout(witnessBeforeThreshold, timeout);
-		}
-	);
-}
-
-function witnessBeforeThreshold(){
-	if (bWitnessingUnderWay)
-		return;
-	bWitnessingUnderWay = true;
-	determineIfThereAreMyUnitsWithoutMci(function(bMyUnitsWithoutMci){
-		if (bMyUnitsWithoutMci){
-			bWitnessingUnderWay = false;
-			return console.log('my units without mci');
-		}
-		// pow add
-		db.takeConnectionFromPool(function(conn){
-			round.getCurrentRoundIndex(conn, function(round_index){
-				determineIfIAmWitness(conn, round_index, function(bWitness){
-					conn.release()
-					// pow add
-					if (!bWitness){
-						bWitnessingUnderWay = false;
-						return console.log('I am not an attestor for now')
-					}
-					console.log('will witness before threshold');
-					witness(function(){
-						bWitnessingUnderWay = false;
-					});
-				});
-			});
-		})	
-	});
-}
-
-function readNumberOfWitnessingsAvailable(handleNumber){
-	count_witnessings_available--;
-	if (count_witnessings_available > conf.MIN_AVAILABLE_WITNESSINGS)
-		return handleNumber(count_witnessings_available);
-	db.query(
-		"SELECT COUNT(*) AS count_big_outputs FROM outputs JOIN units USING(unit) \n\
-		WHERE address=? AND is_stable=1 AND amount>=? AND asset IS NULL AND is_spent=0",
-		[my_address, WITNESSING_COST],
-		function(rows){
-			var count_big_outputs = rows[0].count_big_outputs;
-			db.query(
-				"SELECT SUM(amount) AS total FROM outputs JOIN units USING(unit) \n\
-				WHERE address=? AND is_stable=1 AND amount<? AND asset IS NULL AND is_spent=0",
-				[my_address, WITNESSING_COST],
-				function(rows){
-					var total = rows.reduce(function(prev, row){ return (prev + row.total); }, 0);
-					var count_witnessings_paid_by_small_outputs_and_commissions = Math.round(total / WITNESSING_COST);
-					count_witnessings_available = count_big_outputs + count_witnessings_paid_by_small_outputs_and_commissions;
-					handleNumber(count_witnessings_available);
-				}
-			);
-		}
-	);
-}
-
-// make sure we never run out of spendable (stable) outputs. Keep the number above a threshold, and if it drops below, produce more outputs than consume.
-function createOptimalOutputs(handleOutputs){
-	var arrOutputs = [{amount: 0, address: my_address}];
-	readNumberOfWitnessingsAvailable(function(count){
-		if (count > conf.MIN_AVAILABLE_WITNESSINGS)
-			return handleOutputs(arrOutputs);
-		// try to split the biggest output in two
-		db.query(
-			"SELECT amount FROM outputs JOIN units USING(unit) \n\
-			WHERE address=? AND is_stable=1 AND amount>=? AND asset IS NULL AND is_spent=0 \n\
-			ORDER BY amount DESC LIMIT 1",
-			[my_address, 2*WITNESSING_COST],
-			function(rows){
-				if (rows.length === 0){
-					// notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, and can't add more");
-					return handleOutputs(arrOutputs);
-				}
-				var amount = rows[0].amount;
-				// notifyAdminAboutWitnessingProblem('only '+count+" spendable outputs left, will split an output of "+amount);
-				arrOutputs.push({amount: Math.round(amount/2), address: my_address});
-				handleOutputs(arrOutputs);
-			}
-		);
-	});
 }
 
 function checkTrustMEAndStartMining(round_index){
@@ -441,8 +199,8 @@ eventBus.on('headless_wallet_ready', function(){
 
 	supernode.readSingleAddress(db, function(address){
 		my_address = address;
-		//checkAndWitness();
-		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
+		// checkAndWitness();
+		// eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
 	});
 	
 	eventBus.on('round_switch', function(round_index){
@@ -536,9 +294,7 @@ eventBus.on('headless_wallet_ready', function(){
 			bMining = false;
 			return console.log('Foundation will not mine');
 		}
-		
-		var gap = Date.now() - interval;
-		console.log(`===POW cost: ${gap} ms===`)
+
 		console.log('===Will compose POW joint===');
 	
 		const callbacks = composer.getSavingCallbacks({
