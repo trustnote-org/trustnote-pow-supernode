@@ -21,6 +21,7 @@ exports.bLight = false;
 exports.bServeAsRpc = true;
 exports.rpcInterface = '127.0.0.1';
 exports.rpcPort = 6553;
+exports.debug = false;
 
 // this is used by wallet vendor only, to redirect bug reports to developers' email
 exports.bug_sink_email = 'admin@example.org';
