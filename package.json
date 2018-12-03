@@ -26,6 +26,6 @@
     "bitcore-mnemonic": "~1.0.0",
     "json-rpc2": "^1.0.2",
     "trustnote-pow-common": "git+https://github.com/trustnote/trustnote-pow-common.git#beta2",
-    "trustnote-pow-miner": "git+https://github.com/trustnote/trustnote-pow-miner.git#beta1"
+    "trustnote-pow-miner": "git+https://github.com/trustnote/trustnote-pow-miner.git#beta2"
   }
 }
