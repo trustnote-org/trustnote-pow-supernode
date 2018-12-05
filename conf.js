@@ -29,7 +29,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://10.10.11.90:9192",
+    "ws://119.28.133.253:9192",
 ];
 
 exports.storage = 'sqlite';
