@@ -13,7 +13,7 @@ exports.WS_PROTOCOL = 'ws://';
 exports.pushApiProjectNumber = 0;
 exports.pushApiKey = '';
 
-exports.port = 9191;
+exports.port = 9193;
 //exports.myUrl = 'ws://10.10.11.68:9191';
 exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
@@ -30,7 +30,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://10.10.11.140:9191",
+    "ws://10.10.11.140:9193",
 ];
 
 exports.storage = 'sqlite';
