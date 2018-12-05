@@ -13,7 +13,7 @@ exports.WS_PROTOCOL = 'ws://';
 exports.pushApiProjectNumber = 0;
 exports.pushApiKey = '';
 
-exports.port = 9191;
+exports.port = 9192;
 //exports.myUrl = 'ws://10.10.11.68:9191';
 exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
