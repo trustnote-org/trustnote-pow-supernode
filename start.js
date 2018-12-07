@@ -420,25 +420,28 @@ setTimeout(function(){
 		readSingleWallet(function(wallet){
 			// global
 			wallet_id = wallet;
-			var device = require('trustnote-pow-common/wallet/device.js');
-			device.setDevicePrivateKey(devicePrivKey);
-			let my_device_address = device.getMyDeviceAddress();
-			db.query("SELECT 1 FROM extended_pubkeys WHERE device_address=?", [my_device_address], function(rows){
-				if (rows.length > 1)
-					throw Error("more than 1 extended_pubkey?");
-				if (rows.length === 0)
-					return setTimeout(function(){
-						console.log('passphrase is incorrect');
-						process.exit(0);
-					}, 1000);
-				require('trustnote-pow-common/wallet/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
-				if( !conf.safe_address ) {
-					console.log('## We recommend you to set a safe address for your coin\'s safty where your coinbase rewards will be sent to.\nOther wise, the rewards will be sent to your supernode address');
-				}
-				eventBus.emit('headless_wallet_ready');
-				setTimeout(logging.replaceConsoleLog, 1000);
-				setTimeout(logging.replaceConsoleInfo, 1000);
-				
+			readSingleAddress(function(address){
+				my_address = address;
+				console.log(`\n######################################################\n My Address is ${ my_address }\n######################################################\n`)
+				var device = require('trustnote-pow-common/wallet/device.js');
+				device.setDevicePrivateKey(devicePrivKey);
+				let my_device_address = device.getMyDeviceAddress();
+				db.query("SELECT 1 FROM extended_pubkeys WHERE device_address=?", [my_device_address], function(rows){
+					if (rows.length > 1)
+						throw Error("more than 1 extended_pubkey?");
+					if (rows.length === 0)
+						return setTimeout(function(){
+							console.log('passphrase is incorrect');
+							process.exit(0);
+						}, 1000);
+					require('trustnote-pow-common/wallet/wallet.js'); // we don't need any of its functions but it listens for hub/* messages
+					if( !conf.safe_address ) {
+						console.log('## We recommend you to set a safe address for your coin\'s safty where your coinbase rewards will be sent to.\nOther wise, the rewards will be sent to your supernode address');
+					}
+					eventBus.emit('headless_wallet_ready');
+					setTimeout(logging.replaceConsoleLog, 1000);
+					setTimeout(logging.replaceConsoleInfo, 1000);
+				})
 			});
 		});
 	});
@@ -462,11 +465,7 @@ eventBus.on('headless_wallet_ready', function(){
 		process.exit(1);
 	}
 
-	readSingleAddress(function(address){
-		my_address = address;
-		//checkAndWitness();
-		eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
-	});
+	eventBus.on('new_joint', checkAndWitness); // new_joint event is not sent while we are catching up
 	
 	eventBus.on('round_switch', function(round_index){
 		bMining = false;
