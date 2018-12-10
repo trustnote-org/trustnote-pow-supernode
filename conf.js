@@ -37,6 +37,7 @@ exports.storage = 'sqlite';
 exports.deviceName = 'Supernode';
 exports.permanent_pairing_secret = 'randomstring';
 exports.safe_address = null;
+exports.safe_device_address = null;
 exports.coinbase_address = null;
 
 exports.bSingleAddress = true;
