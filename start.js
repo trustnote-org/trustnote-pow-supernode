@@ -64,7 +64,6 @@ function checkTrustMEAndStartMining(round_index){
 						return onMiningError(err);
 					}
 					else {
-						interval = Date.now()
 						logging.infoStartMining(input_object);
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
