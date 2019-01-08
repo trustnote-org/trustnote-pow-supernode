@@ -45,9 +45,9 @@ function checkTrustMEAndStartMining(round_index){
 	if(bMining || bPowSent) {
 		return console.log(`Checking if I can Mining ${ bMining } ${ bPowSent } ${ round_index }`)
 	}
-	if(my_address == constants.FOUNDATION_ADDRESS) {
-		return console.log('Foundation will not mine');
-	}
+	// if(my_address == constants.FOUNDATION_ADDRESS) {
+	// 	return console.log('Foundation will not mine');
+	// }
 	if(conf.start_mining_round > round_index) {
 		return console.log("Current round is to early, will not be mining")
 	}
