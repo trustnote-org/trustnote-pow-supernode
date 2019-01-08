@@ -327,11 +327,11 @@ eventBus.on('headless_wallet_ready', function(){
 					}
 					conn.query("SELECT count(*) as count from units where pow_type=? and round_index=?", [constants.POW_TYPE_POW_EQUHASH, round_index], function(rows){
 						console.log(`Mining POW :${rows[0].count}`)
-						if(rows[0].count >= 8) {
+						if(rows[0].count >= constants.COUNT_POW_WITNESSES) {
 							bMining = false;
 							bPowSent = true;
 							conn.release()
-							return console.log('There is already more than 8 pow joints, will not compose another one')
+							return console.log('There is already more than '+constants.COUNT_POW_WITNESSES+' pow joints, will not compose another one')
 						}
 						var address = conf.safe_address ? conf.safe_address : my_address
 						deposit.getDepositAddressBySafeAddress(conn, address, function(err, deposit_address){
