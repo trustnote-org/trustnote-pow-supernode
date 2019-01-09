@@ -86,6 +86,19 @@ function checkTrustMEAndStartMining(round_index){
 	})
 }
 
+function determineIfIAmWitness(conn, round_index, handleResult){
+	round.getWitnessesByRoundIndex(conn, round_index, function(arrWitnesses){
+		conn.query(
+			"SELECT 1 FROM my_addresses where address IN(?)", [arrWitnesses], function(rows) {
+				if(rows.length===0) {
+					return handleResult(false)
+				}
+				return handleResult(true)
+			}
+		)
+	})
+}
+
 function checkRoundAndComposeCoinbase(round_index) {
 	if(round_index===1) {
 		return;
