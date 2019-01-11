@@ -116,7 +116,7 @@ function checkRoundAndComposeCoinbase(round_index) {
 			{
 				var coinbaseReward = 0;
 				for (var j=0; j<objJoint.unit.messages[0].payload.outputs.length; j++){
-					var output = payload.outputs[j];
+					var output = objJoint.unit.messages[0].payload.outputs[j];
 					if(output.address === my_address)
 						coinbaseReward = parseInt(output.amount);
 				}
