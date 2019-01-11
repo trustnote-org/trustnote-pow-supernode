@@ -60,19 +60,16 @@ function checkTrustMEAndStartMining(round_index){
 				pow.obtainMiningInput(conn, round_index, function(err, input_object) {
 					conn.release();
 					if (err) {
-						console.log(`Mining is on going 1 err: ${ err }`);
 						// notifyAdminAboutWitnessingProblem(err)
 						return onMiningError(err);
 					}
 					else {
-						console.log(`Mining is on going 2: ${ input_object }`);
 						logging.infoStartMining(input_object);
 						pow.startMiningWithInputs(input_object, function(err){
 							if (err) {
-								console.log(`Mining is on going 3 onMiningError: ${ err }`);
 								return onMiningError(err);
 							} else {
-								console.log("Mining is on going 6");
+								console.log("Mining is on going ");
 							}
 						})
 					}
@@ -303,7 +300,6 @@ eventBus.on('headless_wallet_ready', function(){
 	eventBus.on("pow_mined_gift", function(err, solution){
 		
 		if(err) {
-			console.log(`Mining is on going 9 err: ${ err }`);
 			return onMiningError(err);
 		}
 
