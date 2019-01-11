@@ -113,7 +113,15 @@ function checkRoundAndComposeCoinbase(round_index) {
 		ifOk: function(objJoint){
 			network.broadcastJoint(objJoint);
 			if(objJoint.unit.messages[0].payload.outputs[0].amount)
-				logging.infoCoinbaseReward(objJoint.unit.round_index, my_address,objJoint.unit.messages[0].payload.outputs[0].amount);
+			{
+				var coinbaseReward = 0;
+				for (var j=0; j<objJoint.unit.messages[0].payload.outputs.length; j++){
+					var output = payload.outputs[j];
+					if(output.address === my_address)
+						coinbaseReward = parseInt(output.amount);
+				}
+				logging.infoCoinbaseReward(objJoint.unit.round_index, my_address, coinbaseReward);
+			}
 			else
 				logging.infoCoinbaseReward(objJoint.unit.round_index, my_address, 0);
 			console.log('=== Coinbase sent ===')
