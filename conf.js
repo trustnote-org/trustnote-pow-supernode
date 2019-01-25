@@ -14,7 +14,7 @@ exports.pushApiProjectNumber = 0;
 exports.pushApiKey = '';
 
 exports.port = 9193;
-//exports.myUrl = 'ws://10.10.11.68:9191';
+exports.myUrl = 'ws://10.10.11.50:9193';
 exports.bServeAsHub = true;
 exports.bSaveJointJson = true;
 exports.bLight = false;
@@ -23,6 +23,9 @@ exports.rpcInterface = '127.0.0.1';
 exports.rpcPort = 6553;
 exports.debug = false;
 
+// byzantine
+exports.IF_BYZANTINE = true;
+
 // this is used by wallet vendor only, to redirect bug reports to developers' email
 exports.bug_sink_email = 'admin@example.org';
 exports.bugs_from_email = 'bugs@example.org';
@@ -30,7 +33,7 @@ exports.bugs_from_email = 'bugs@example.org';
 exports.HEARTBEAT_TIMEOUT = 300*1000;
 
 exports.initial_peers = [
-    "ws://10.10.11.140:9193",
+    "ws://119.28.44.246:9193",
 ];
 
 exports.storage = 'sqlite';
