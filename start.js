@@ -11,7 +11,7 @@ var round = require('trustnote-pow-common/pow/round.js');
 var pow = require('trustnote-pow-common/pow/pow.js');
 var deposit = require('trustnote-pow-common/sc/deposit');
 var supernode = require('trustnote-pow-common/wallet/supernode');
-var byzatine = require('trustnote-pow-common/mc/byzantine');
+var byzantine = require('trustnote-pow-common/mc/byzantine');
 var _ = require('lodash');
 
 require('./lib/relay.js');
@@ -375,14 +375,14 @@ eventBus.on('headless_wallet_ready', function(){
 	eventBus.on("byzantine_success", function(address, proposal, approvedCoordinators){
 		
 		if(address !== my_address){
-			return byzantine.doStartPhase(proposal.unit.hp, proposal.phase+1);
+			return byzantine.doStartPhase(proposal.unit.hp, parseInt(proposal.phase)+1);
 		}
 		if(last_main_chain_index >= proposal.unit.hp){
-			return byzantine.doStartPhase(proposal.unit.hp, proposal.phase+1);
+			return byzantine.doStartPhase(proposal.unit.hp, parseInt(proposal.phase)+1);
 		}
 
 		function onTrustMeError(){
-			return byzantine.doStartPhase(proposal.unit.hp, proposal.phase+1);
+			return byzantine.doStartPhase(proposal.unit.hp, parseInt(proposal.phase)+1);
 		}
 		const callbacks = composer.getSavingCallbacks({
 			ifNotEnoughFunds: onTrustMeError,
