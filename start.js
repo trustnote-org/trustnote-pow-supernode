@@ -299,7 +299,7 @@ eventBus.on('headless_wallet_ready', function(){
 			checkRoundAndComposeCoinbase(round_index);
 			checkTrustMEAndStartMining(round_index);
 		})
-	},10*1000);
+	},20*1000);
 
 	eventBus.on("launch_pow", function(round_index) {
 		checkTrustMEAndStartMining(round_index)
