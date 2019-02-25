@@ -12,6 +12,7 @@ var pow = require('trustnote-pow-common/pow/pow.js');
 var deposit = require('trustnote-pow-common/sc/deposit');
 var supernode = require('trustnote-pow-common/wallet/supernode');
 var byzatine = require('trustnote-pow-common/mc/byzantine');
+var _ = require('lodash');
 
 require('./lib/relay.js');
 require('./lib/push.js');
