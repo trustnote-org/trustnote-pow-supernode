@@ -22,6 +22,7 @@ if (!conf.bSingleAddress)
 
 var my_address;
 var last_round_index = 0;
+var last_main_chain_index = 0;
 var wallet_id;
 var xPrivKey;
 var bMining = false; // if miner is mining
@@ -289,8 +290,9 @@ eventBus.on('headless_wallet_ready', function(){
 		last_round_index = oBody.last_round_index;
 	});
 
-	eventBus.on('updated_last_round_index_from_peers', function (nLastRoundIndexFromPeers){
+	eventBus.on('updated_last_round_index_from_peers', function (nLastRoundIndexFromPeers, nLastMainChainIndexFromPeers){
 		last_round_index = nLastRoundIndexFromPeers;
+		last_main_chain_index = nLastMainChainIndexFromPeers;
 	})
 
 	setInterval(function(){
@@ -368,7 +370,31 @@ eventBus.on('headless_wallet_ready', function(){
 			})
 		});
 	})
-	
+
+	eventBus.on("byzantine_success", function(address, proposal, approvedCoordinators){
+		
+		if(address !== my_address){
+			return byzantine.doStartPhase(proposal.unit.hp, proposal.phase+1);
+		}
+		if(last_main_chain_index >= proposal.unit.hp){
+			return byzantine.doStartPhase(proposal.unit.hp, proposal.phase+1);
+		}
+
+		function onTrustMeError(){
+			return byzantine.doStartPhase(proposal.unit.hp, proposal.phase+1);
+		}
+		const callbacks = composer.getSavingCallbacks({
+			ifNotEnoughFunds: onTrustMeError,
+			ifError: onTrustMeError,
+			ifOk: function(objJoint){
+				network.broadcastJoint(objJoint);
+			}
+		});
+		var objNakedProposal = _.cloneDeep(proposal);
+		var objNakedApprovedCoordinators = _.cloneDeep(approvedCoordinators);
+		composer.composeCoordinatorTrustMe(address, objNakedProposal, proposal.phase, objNakedApprovedCoordinators, supernode.signer, callbacks);      
+	})
+
 	if(conf.bServeAsRpc){
 		var rpc_service = require('./lib/rpc_service.js');
 		rpc_service.initRPC();
