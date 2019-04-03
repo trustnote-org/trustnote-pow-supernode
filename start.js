@@ -214,10 +214,10 @@ eventBus.on('headless_wallet_ready', function(){
 			[conf.permanent_pairing_secret]
 		);
 		
-	if (!conf.admin_email || !conf.from_email){
-		console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
-		process.exit(1);
-	}
+	// if (!conf.admin_email || !conf.from_email){
+	// 	console.log("please specify admin_email and from_email in your "+desktopApp.getAppDataDir()+'/conf.json');
+	// 	process.exit(1);
+	// }
 
 	supernode.readSingleAddress(db, function(address){
 		my_address = address;
