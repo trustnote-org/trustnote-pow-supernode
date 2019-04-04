@@ -41,10 +41,10 @@ function onMiningError(err){
 }
 
 function checkTrustMEAndStartMining(round_index){
-	var network = require('trustnote-pow-common/p2p/network.js');
-	if(!network.getIfMyurlClaimed()){
-		return console.log(`My url is not claimed, will not mining`)
-	}
+	// var network = require('trustnote-pow-common/p2p/network.js');
+	// if(!network.getIfMyurlClaimed()){
+	// 	return console.log(`My url is not claimed, will not mining`)
+	// }
 	if(round_index < last_round_index) {
 		return console.log(`Last Round Index is ${ last_round_index }, will not mining`)
 	}
